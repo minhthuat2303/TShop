@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import { getClientCached, setClientCached, clearClientCache } from '@/lib/client-cache';
+import { formatCurrency } from '@/lib/formatters';
 
 interface ProductItem {
   id: number;
@@ -387,7 +388,7 @@ export default function FastSalesPage() {
     }
   };
 
-  const formatVND = (num: number) => (num || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (num: number) => formatCurrency(num);
 
   return (
     <div style={{ width: '100%' }}>
@@ -792,7 +793,7 @@ export default function FastSalesPage() {
                             </div>
                             {item.discountThousand > 0 && (
                               <div style={{ fontSize: 10, color: '#dc2626' }}>
-                                -{itemDiscountVND.toLocaleString()}đ
+                                -{formatCurrency(itemDiscountVND)}
                               </div>
                             )}
                           </div>

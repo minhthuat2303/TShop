@@ -12,9 +12,10 @@ import {
   PlusCircle, 
   ArrowRight, 
   ShieldCheck, 
-  AlertTriangle 
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function ExcelManagementPage() {
   const { user } = useAuth();
@@ -333,8 +334,8 @@ export default function ExcelManagementPage() {
                           <td style={{ fontWeight: 600 }}>{p.name}</td>
                           <td>{p.category_name}</td>
                           <td>{p.product_type_name}</td>
-                          <td className="text-right">{p.cost_price?.toLocaleString('vi-VN')} đ</td>
-                          <td className="text-right" style={{ fontWeight: 600, color: '#1d4ed8' }}>{p.selling_price?.toLocaleString('vi-VN')} đ</td>
+                          <td className="text-right">{formatCurrency(p.cost_price)}</td>
+                          <td className="text-right" style={{ fontWeight: 600, color: '#1d4ed8' }}>{formatCurrency(p.selling_price)}</td>
                           <td className="text-right">{p.stock}</td>
                         </tr>
                       ))}

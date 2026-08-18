@@ -11,6 +11,7 @@ import {
   ArrowUpRight 
 } from 'lucide-react';
 import { DateFilterPeriod } from '@/lib/date-utils';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<DateFilterPeriod>('30days');
@@ -46,7 +47,7 @@ export default function ReportsPage() {
     loadReports();
   }, [period]);
 
-  const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (v: number) => formatCurrency(v);
 
   return (
     <div style={{ width: '100%' }}>

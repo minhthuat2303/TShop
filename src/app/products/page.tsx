@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import { getClientCached, setClientCached } from '@/lib/client-cache';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -255,7 +256,7 @@ export default function ProductsPage() {
     }
   };
 
-  const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (v: number) => formatCurrency(v);
 
   return (
     <div style={{ width: '100%' }}>

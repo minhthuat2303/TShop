@@ -13,9 +13,10 @@ import {
   FileSpreadsheet, 
   FileCheck, 
   RefreshCw, 
-  ArrowRight 
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function InventoryImportPage() {
   const { user } = useAuth();
@@ -192,7 +193,7 @@ export default function InventoryImportPage() {
   };
 
   const selectedProdObj = products.find((p) => String(p.id) === String(productId));
-  const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (v: number) => formatCurrency(v);
 
   return (
     <div style={{ maxWidth: 950, margin: '0 auto', width: '100%' }}>

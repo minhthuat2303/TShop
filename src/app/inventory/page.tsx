@@ -13,9 +13,10 @@ import {
   CheckCircle2, 
   AlertCircle, 
   PackageCheck, 
-  Tag 
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
 
 export default function InventoryOverviewPage() {
@@ -119,7 +120,7 @@ export default function InventoryOverviewPage() {
     }
   };
 
-  const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (v: number) => formatCurrency(v);
 
   return (
     <div style={{ width: '100%' }}>

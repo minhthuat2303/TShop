@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { DateFilterPeriod } from '@/lib/date-utils';
 import { getClientCached, setClientCached } from '@/lib/client-cache';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Category {
   id: number;
@@ -306,7 +307,7 @@ function ProfessionalBarChart({
                       {s.label}:
                     </span>
                     <strong style={{ color: '#ffffff' }}>
-                      {(Number(data[hoverIndex][s.key]) || 0).toLocaleString('vi-VN')} đ
+                      {s.isCurrency ? formatCurrency(data[hoverIndex][s.key]) : `${(Number(data[hoverIndex][s.key]) || 0).toLocaleString('en-US')} ${s.label}`}
                     </strong>
                   </div>
                 ))}
@@ -802,7 +803,7 @@ export default function DashboardPage() {
     }
   };
 
-  const formatVND = (num: number) => (num || 0).toLocaleString('vi-VN') + ' đ';
+  const formatVND = (num: number) => formatCurrency(num);
   const hasActiveCascadingFilter = Boolean(selectedCategory || selectedType || selectedProduct);
 
   return (
