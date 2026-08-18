@@ -23,16 +23,22 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      let data: any;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
 
-      if (!res.ok || !data.success) {
-        setError(data.error?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      if (!res.ok || !data || !data.success) {
+        setError(data?.error?.message || (res.status >= 500 ? 'Lỗi máy chủ (500 Server Error). Vui lòng thử lại sau.' : 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'));
         return;
       }
 
       login(data.data.user, data.data.token);
     } catch (err: any) {
-      setError(err.message || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.');
+      setError(err.message || 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.');
     } finally {
       setLoading(false);
     }
