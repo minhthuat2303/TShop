@@ -41,14 +41,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (q) {
-      whereClauses.push(`(p.sku LIKE ? OR p.name LIKE ?)`);
+      whereClauses.push(`(p.sku ILIKE ? OR p.name ILIKE ?)`);
       params.push(`%${q}%`, `%${q}%`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    // Aggregation query per product in period with FIFO lot valuation
-    const rawRows = db.prepare(`
+    const rawRows = await db.query<any>(`
       SELECT 
         p.id as product_id,
         p.sku,
@@ -113,14 +112,20 @@ export async function GET(request: NextRequest) {
       ) imports ON imports.product_id = p.id
 
       ${whereSql}
-    `).all(...params) as any[];
+    `, params);
 
-    // Calculate total_available = current_stock + total_sold
     const formattedRows = rawRows.map((row) => ({
       ...row,
+      current_stock: Number(row.current_stock || 0),
+      selling_price: Number(row.selling_price || 0),
       cost_price: Number(row.avg_cost_price) || 0,
       stock_value: Number(row.stock_value) || 0,
-      total_available: Number(row.current_stock) + Number(row.total_sold),
+      total_sold: Number(row.total_sold || 0),
+      total_imported: Number(row.total_imported || 0),
+      revenue: Number(row.revenue || 0),
+      cogs: Number(row.cogs || 0),
+      profit: Number(row.profit || 0),
+      total_available: Number(row.current_stock || 0) + Number(row.total_sold || 0),
     }));
 
     // Sorting
@@ -133,7 +138,6 @@ export async function GET(request: NextRequest) {
       return sortOrder === 'ASC' ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
     });
 
-    // Summary totals for footer
     const totals = formattedRows.reduce(
       (acc, r) => ({
         total_available: acc.total_available + r.total_available,

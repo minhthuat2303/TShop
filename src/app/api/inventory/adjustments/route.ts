@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { MovementType } from '@/lib/types';
 
@@ -46,24 +46,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adjustmentResult = runTransaction((database) => {
-      const product = database.prepare('SELECT id, sku, name, current_stock FROM products WHERE id = ?').get(productId) as any;
+    const adjustmentResult = await db.transaction(async (tx) => {
+      const product = await tx.queryOne<any>('SELECT id, sku, name, current_stock FROM products WHERE id = ?', [productId]);
       if (!product) {
         throw new Error('Sản phẩm không tồn tại.');
       }
 
-      const newStock = product.current_stock + qtyChange;
+      const newStock = Number(product.current_stock) + qtyChange;
       if (newStock < 0) {
         throw new Error(`Số lượng tồn không thể âm (Hiện tại: ${product.current_stock}, Điều chỉnh: ${qtyChange}, Tồn mới: ${newStock}).`);
       }
 
       // 1. Insert stock movement
-      const movementInfo = database.prepare(`
+      const movementInfo = await tx.execute(`
         INSERT INTO stock_movements (
           product_id, movement_type, quantity_change, balance_after,
           movement_date, reference_type, note, created_by
         ) VALUES (?, ?, ?, ?, ?, 'stock_adjustments', ?, ?)
-      `).run(
+      `, [
         productId,
         movementType,
         qtyChange,
@@ -71,28 +71,30 @@ export async function POST(request: NextRequest) {
         date,
         note ? note.trim() : `Điều chỉnh kho (${movementType})`,
         user.id
-      );
+      ]);
+
+      const movementId = Number(movementInfo.lastInsertId);
 
       // 2. Update cached stock in products table
-      database.prepare(`
+      await tx.execute(`
         UPDATE products
         SET current_stock = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(newStock, productId);
+      `, [newStock, productId]);
 
       // 3. Insert Audit Log
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json, new_value_json)
         VALUES (?, 'STOCK_ADJUSTMENT', 'STOCK_MOVEMENTS', ?, ?, ?)
-      `).run(
+      `, [
         user.id,
-        movementInfo.lastInsertRowid.toString(),
+        (movementId || 0).toString(),
         JSON.stringify({ stock_before: product.current_stock }),
         JSON.stringify({ movementType, qtyChange, balance_after: newStock, note })
-      );
+      ]);
 
       return {
-        id: movementInfo.lastInsertRowid,
+        id: movementId,
         productId,
         productName: product.name,
         movementType,

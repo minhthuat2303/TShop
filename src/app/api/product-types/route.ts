@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       params.push(categoryId);
     }
 
-    query += ` GROUP BY pt.id ORDER BY c.name ASC, pt.name ASC`;
+    query += ` GROUP BY pt.id, pt.category_id, pt.code, pt.name, pt.description, pt.status, pt.created_at, pt.updated_at, c.name ORDER BY c.name ASC, pt.name ASC`;
 
-    const productTypes = db.prepare(query).all(...params);
+    const productTypes = await db.query(query, params);
 
     return NextResponse.json({
       success: true,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const category = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+    const category = await db.queryOne('SELECT id FROM categories WHERE id = ?', [category_id]);
     if (!category) {
       return NextResponse.json(
         { success: false, error: { code: 'INVALID_CATEGORY', message: 'Danh mục được chọn không tồn tại.' } },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formattedCode = code.trim().toUpperCase();
-    const existing = db.prepare('SELECT id FROM product_types WHERE code = ?').get(formattedCode);
+    const existing = await db.queryOne('SELECT id FROM product_types WHERE code = ?', [formattedCode]);
     if (existing) {
       return NextResponse.json(
         { success: false, error: { code: 'DUPLICATE_CODE', message: `Mã loại sản phẩm '${formattedCode}' đã tồn tại.` } },
@@ -76,22 +76,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const info = db.prepare(`
+    const info = await db.execute(`
       INSERT INTO product_types (category_id, code, name, description, status)
       VALUES (?, ?, ?, ?, 'ACTIVE')
-    `).run(category_id, formattedCode, name.trim(), description ? description.trim() : null);
+    `, [category_id, formattedCode, name.trim(), description ? description.trim() : null]);
 
-    db.prepare(`
+    const newId = info.lastInsertId;
+
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
       VALUES (?, 'CREATE_PRODUCT_TYPE', 'PRODUCT_TYPES', ?, ?)
-    `).run(user.id, info.lastInsertRowid.toString(), JSON.stringify({ category_id, code: formattedCode, name }));
+    `, [user.id, (newId || 0).toString(), JSON.stringify({ category_id, code: formattedCode, name })]);
 
-    const newType = db.prepare(`
+    const newType = await db.queryOne(`
       SELECT pt.*, c.name as category_name
       FROM product_types pt
       JOIN categories c ON c.id = pt.category_id
       WHERE pt.id = ?
-    `).get(info.lastInsertRowid);
+    `, [newId]);
 
     return NextResponse.json({ success: true, data: newType }, { status: 201 });
   } catch (error: any) {

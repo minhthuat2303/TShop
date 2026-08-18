@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -38,31 +38,31 @@ export async function GET(request: NextRequest) {
     }
 
     if (q) {
-      whereClauses.push(`(sr.transaction_code LIKE ? OR p.name LIKE ? OR p.sku LIKE ? OR sr.note LIKE ?)`);
+      whereClauses.push(`(sr.transaction_code ILIKE ? OR p.name ILIKE ? OR p.sku ILIKE ? OR sr.note ILIKE ?)`);
       params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countResult = db.prepare(`
+    const countResult = await db.queryOne<any>(`
       SELECT 
         COUNT(*) as total, 
-        SUM(CASE WHEN sr.status = 'COMPLETED' THEN sr.total_revenue ELSE 0 END) as sum_revenue, 
-        SUM(CASE WHEN sr.status = 'COMPLETED' THEN sr.profit ELSE 0 END) as sum_profit, 
-        SUM(CASE WHEN sr.status = 'COMPLETED' THEN sr.quantity ELSE 0 END) as sum_qty,
-        SUM(CASE WHEN sr.status = 'COMPLETED' THEN COALESCE(sr.discount, 0) ELSE 0 END) as sum_discount,
-        SUM(CASE WHEN sr.status = 'COMPLETED' THEN sr.total_cost ELSE 0 END) as sum_cost,
+        SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.total_revenue ELSE 0 END) as sum_revenue, 
+        SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.profit ELSE 0 END) as sum_profit, 
+        SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.quantity ELSE 0 END) as sum_qty,
+        SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN COALESCE(sr.discount, 0) ELSE 0 END) as sum_discount,
+        SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.total_cost ELSE 0 END) as sum_cost,
         SUM(CASE WHEN sr.status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_count,
         SUM(CASE WHEN sr.status = 'CANCELLED' THEN sr.total_revenue ELSE 0 END) as sum_cancelled_revenue
       FROM sales_records sr
       JOIN products p ON p.id = sr.product_id
       ${whereSql}
-    `).get(...params) as any;
+    `, params);
 
-    const total = countResult?.total || 0;
+    const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const records = db.prepare(`
+    const records = await db.query(`
       SELECT 
         sr.id, sr.transaction_code, sr.product_id, sr.sale_date, sr.quantity,
         sr.unit_price_at_sale, sr.cost_price_at_sale, 
@@ -85,19 +85,19 @@ export async function GET(request: NextRequest) {
       ${whereSql}
       ORDER BY sr.sale_date DESC, sr.id DESC
       LIMIT ? OFFSET ?
-    `).all(...params, limit, offset);
+    `, [...params, limit, offset]);
 
     return NextResponse.json({
       success: true,
       data: records,
       summary: {
-        totalRevenue: countResult?.sum_revenue || 0,
-        totalCost: countResult?.sum_cost || 0,
-        totalProfit: countResult?.sum_profit || 0,
-        totalQuantity: countResult?.sum_qty || 0,
-        totalDiscount: countResult?.sum_discount || 0,
-        cancelledCount: countResult?.cancelled_count || 0,
-        cancelledRevenue: countResult?.sum_cancelled_revenue || 0,
+        totalRevenue: Number(countResult?.sum_revenue || 0),
+        totalCost: Number(countResult?.sum_cost || 0),
+        totalProfit: Number(countResult?.sum_profit || 0),
+        totalQuantity: Number(countResult?.sum_qty || 0),
+        totalDiscount: Number(countResult?.sum_discount || 0),
+        cancelledCount: Number(countResult?.cancelled_count || 0),
+        cancelledRevenue: Number(countResult?.sum_cancelled_revenue || 0),
       },
       pagination: {
         page,
@@ -129,7 +129,6 @@ export async function POST(request: NextRequest) {
 
     const date = saleDate || new Date().toISOString().split('T')[0];
 
-    // Normalize payload to support both single item and batch items
     let salesItems: Array<{ productId: number; quantity: number; discountThousand?: number; note?: string }> = [];
 
     if (Array.isArray(items) && items.length > 0) {
@@ -156,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Execute safe atomic transaction for all items using FIFO COGS Allocation
-    const results = runTransaction((database) => {
+    const results = await db.transaction(async (tx) => {
       const recordedList: any[] = [];
 
       for (const item of salesItems) {
@@ -165,11 +164,11 @@ export async function POST(request: NextRequest) {
         }
 
         // 1. Check product existence and status
-        const product = database.prepare(`
+        const product = await tx.queryOne<any>(`
           SELECT id, sku, name, current_stock, current_selling_price, current_cost_price, status
           FROM products
           WHERE id = ?
-        `).get(item.productId) as any;
+        `, [item.productId]);
 
         if (!product) {
           throw new Error(`Sản phẩm (ID: ${item.productId}) không tồn tại trong hệ thống.`);
@@ -180,57 +179,52 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Check stock availability
-        if (product.current_stock < item.quantity) {
+        if (Number(product.current_stock) < item.quantity) {
           throw new Error(`Sản phẩm '${product.name}' tồn kho không đủ (Hiện còn: ${product.current_stock}, Yêu cầu: ${item.quantity}).`);
         }
 
         // 3. Resolve historical selling price at the sale date
-        const priceRecord = database.prepare(`
+        const priceRecord = await tx.queryOne<any>(`
           SELECT price FROM price_history
           WHERE product_id = ? AND effective_from <= ?
           ORDER BY effective_from DESC, id DESC
           LIMIT 1
-        `).get(item.productId, date) as { price: number } | undefined;
+        `, [item.productId, date]);
 
-        const unitPrice = priceRecord ? priceRecord.price : product.current_selling_price;
+        const unitPrice = priceRecord ? Number(priceRecord.price) : Number(product.current_selling_price);
 
-        // Discount calculation: input unit is 1,000 VND (e.g. 5 = 5,000 VND)
         const discountAmount = Math.max(0, (item.discountThousand || 0) * 1000);
         const subtotal = item.quantity * unitPrice;
         const totalRevenue = Math.max(0, subtotal - discountAmount);
 
         // 4. FIFO COGS ALLOCATION ENGINE
-        // Find available inventory lots sorted by purchase_date ASC, id ASC (FIFO)
-        let availableLots = database.prepare(`
+        let availableLots = await tx.query<any>(`
           SELECT id, lot_code, quantity_received, quantity_remaining, unit_cost, purchase_date
           FROM inventory_lots
           WHERE product_id = ? AND quantity_remaining > 0
           ORDER BY purchase_date ASC, id ASC
-        `).all(item.productId) as any[];
+        `, [item.productId]);
 
-        // Check total available quantity across lots
-        const totalLotQty = availableLots.reduce((acc, l) => acc + l.quantity_remaining, 0);
+        const totalLotQty = availableLots.reduce((acc, l) => acc + Number(l.quantity_remaining), 0);
 
-        // If lots have less stock than required (e.g. legacy products before migration), create an emergency baseline lot
         if (totalLotQty < item.quantity) {
           const missingQty = item.quantity - totalLotQty;
           const emergencyLotCode = `LOT-BASE-${product.sku}-${Date.now().toString().slice(-4)}`;
-          const insertEmergency = database.prepare(`
+          const insertEmergency = await tx.execute(`
             INSERT INTO inventory_lots (lot_code, product_id, purchase_date, quantity_received, quantity_remaining, unit_cost, note, created_by)
             VALUES (?, ?, ?, ?, ?, ?, 'Khởi tạo lô bổ sung tự động', ?)
-          `).run(emergencyLotCode, product.id, date, missingQty, missingQty, product.current_cost_price, user.id);
+          `, [emergencyLotCode, product.id, date, missingQty, missingQty, product.current_cost_price, user.id]);
 
           availableLots.push({
-            id: Number(insertEmergency.lastInsertRowid),
+            id: Number(insertEmergency.lastInsertId),
             lot_code: emergencyLotCode,
             quantity_received: missingQty,
             quantity_remaining: missingQty,
-            unit_cost: product.current_cost_price,
+            unit_cost: Number(product.current_cost_price),
             purchase_date: date,
           });
         }
 
-        // Allocate quantity across lots in FIFO order
         let remainingNeeded = item.quantity;
         let accumulatedCOGS = 0;
         const allocationsToInsert: Array<{ lotId: number; lotCode: string; qty: number; unitCost: number; totalCost: number }> = [];
@@ -238,25 +232,25 @@ export async function POST(request: NextRequest) {
         for (const lot of availableLots) {
           if (remainingNeeded <= 0) break;
 
-          const takeQty = Math.min(remainingNeeded, lot.quantity_remaining);
-          const lotCost = takeQty * lot.unit_cost;
+          const lotRemaining = Number(lot.quantity_remaining);
+          const takeQty = Math.min(remainingNeeded, lotRemaining);
+          const lotCost = takeQty * Number(lot.unit_cost);
           accumulatedCOGS += lotCost;
           remainingNeeded -= takeQty;
 
-          const updatedLotRemaining = lot.quantity_remaining - takeQty;
+          const updatedLotRemaining = lotRemaining - takeQty;
 
-          // Update lot quantity_remaining in database
-          database.prepare(`
+          await tx.execute(`
             UPDATE inventory_lots
             SET quantity_remaining = ?
             WHERE id = ?
-          `).run(updatedLotRemaining, lot.id);
+          `, [updatedLotRemaining, lot.id]);
 
           allocationsToInsert.push({
             lotId: lot.id,
             lotCode: lot.lot_code,
             qty: takeQty,
-            unitCost: lot.unit_cost,
+            unitCost: Number(lot.unit_cost),
             totalCost: lotCost,
           });
         }
@@ -267,21 +261,20 @@ export async function POST(request: NextRequest) {
 
         const totalCost = accumulatedCOGS;
         const profit = totalRevenue - totalCost;
-        const costPriceAtSale = item.quantity > 0 ? (totalCost / item.quantity) : product.current_cost_price;
+        const costPriceAtSale = item.quantity > 0 ? (totalCost / item.quantity) : Number(product.current_cost_price);
 
-        // Generate unique transaction code
         const cleanDate = date.replace(/-/g, '');
         const randomSuffix = Math.floor(1000 + Math.random() * 9000);
         const txCode = `TX-${cleanDate}-${Date.now().toString().slice(-4)}${randomSuffix}`;
 
-        // 5. Insert sales_records (Snapshot values with exact FIFO COGS)
-        const saleInfo = database.prepare(`
+        // 5. Insert sales_records
+        const saleInfo = await tx.execute(`
           INSERT INTO sales_records (
             transaction_code, product_id, sale_date, quantity,
             unit_price_at_sale, cost_price_at_sale, discount, total_revenue, total_cost, profit,
             note, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+        `, [
           txCode,
           item.productId,
           date,
@@ -294,29 +287,27 @@ export async function POST(request: NextRequest) {
           profit,
           item.note || null,
           user.id
-        );
+        ]);
 
-        const saleRecordId = Number(saleInfo.lastInsertRowid);
+        const saleRecordId = Number(saleInfo.lastInsertId);
 
-        // 6. Insert sale_cost_allocations for each lot involved
-        const insertAllocStmt = database.prepare(`
-          INSERT INTO sale_cost_allocations (sale_id, inventory_lot_id, quantity, unit_cost, total_cost)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-
+        // 6. Insert sale_cost_allocations
         for (const alloc of allocationsToInsert) {
-          insertAllocStmt.run(saleRecordId, alloc.lotId, alloc.qty, alloc.unitCost, alloc.totalCost);
+          await tx.execute(`
+            INSERT INTO sale_cost_allocations (sale_id, inventory_lot_id, quantity, unit_cost, total_cost)
+            VALUES (?, ?, ?, ?, ?)
+          `, [saleRecordId, alloc.lotId, alloc.qty, alloc.unitCost, alloc.totalCost]);
         }
 
-        const newStockBalance = product.current_stock - item.quantity;
+        const newStockBalance = Number(product.current_stock) - item.quantity;
 
         // 7. Insert stock_movements (Type = SALE)
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO stock_movements (
             product_id, movement_type, quantity_change, balance_after,
             movement_date, reference_type, reference_id, note, created_by
           ) VALUES (?, 'SALE', ?, ?, ?, 'sales_records', ?, ?, ?)
-        `).run(
+        `, [
           item.productId,
           -item.quantity,
           newStockBalance,
@@ -325,35 +316,37 @@ export async function POST(request: NextRequest) {
           `Ghi nhận bán mã ${txCode} (FIFO: ${allocationsToInsert.map(a => `${a.qty}x${a.lotCode}`).join(', ')})` +
             (discountAmount > 0 ? ` (Giảm ${discountAmount.toLocaleString('vi-VN')}đ)` : ''),
           user.id
-        );
+        ]);
 
-        // 8. Calculate weighted average cost of remaining lots for product cache
-        const remainingLotsSummary = database.prepare(`
+        // 8. Calculate weighted average cost of remaining lots
+        const remainingLotsSummary = await tx.queryOne<any>(`
           SELECT 
             COALESCE(SUM(quantity_remaining), 0) as total_rem,
             COALESCE(SUM(quantity_remaining * unit_cost), 0) as total_val
           FROM inventory_lots
           WHERE product_id = ? AND quantity_remaining > 0
-        `).get(item.productId) as { total_rem: number; total_val: number };
+        `, [item.productId]);
 
-        const weightedAvgCost = remainingLotsSummary.total_rem > 0
-          ? Math.round(remainingLotsSummary.total_val / remainingLotsSummary.total_rem)
-          : product.current_cost_price;
+        const totalRem = Number(remainingLotsSummary?.total_rem || 0);
+        const totalVal = Number(remainingLotsSummary?.total_val || 0);
+        const weightedAvgCost = totalRem > 0
+          ? Math.round(totalVal / totalRem)
+          : Number(product.current_cost_price);
 
         // 9. Update product cached stock & weighted average cost
-        database.prepare(`
+        await tx.execute(`
           UPDATE products
           SET current_stock = ?,
               current_cost_price = ?,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
-        `).run(newStockBalance, weightedAvgCost, item.productId);
+        `, [newStockBalance, weightedAvgCost, item.productId]);
 
         // 10. Insert Audit Log
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
           VALUES (?, 'RECORD_SALE_FIFO', 'SALES_RECORDS', ?, ?)
-        `).run(user.id, saleRecordId.toString(), JSON.stringify({
+        `, [user.id, saleRecordId.toString(), JSON.stringify({
           transaction_code: txCode,
           product_sku: product.sku,
           product_name: product.name,
@@ -365,7 +358,7 @@ export async function POST(request: NextRequest) {
           profit: profit,
           allocations: allocationsToInsert,
           balance_after: newStockBalance,
-        }));
+        })]);
 
         recordedList.push({
           id: saleRecordId,

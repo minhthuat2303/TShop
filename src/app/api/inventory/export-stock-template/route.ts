@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const products = db.prepare(`
+    const products = await db.query<any>(`
       SELECT 
         p.id, p.sku, p.name, p.current_stock, p.current_cost_price,
         c.name as category_name,
@@ -14,7 +14,7 @@ export async function GET() {
       JOIN product_types pt ON pt.id = p.product_type_id
       WHERE p.status = 'ACTIVE'
       ORDER BY c.name ASC, pt.name ASC, p.name ASC
-    `).all() as any[];
+    `);
 
     const excelData = products.map((p) => ({
       'Mã SKU (*)': p.sku,

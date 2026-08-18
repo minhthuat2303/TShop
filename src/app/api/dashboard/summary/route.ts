@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 1. Sales & Revenue & COGS & Profit in period
-    const salesStats = db.prepare(`
+    const salesStats = await db.queryOne<any>(`
       SELECT 
         COUNT(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.id END) as sales_count,
         COALESCE(SUM(CASE WHEN COALESCE(sr.status, 'COMPLETED') = 'COMPLETED' THEN sr.quantity ELSE 0 END), 0) as sold_quantity,
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       FROM sales_records sr
       JOIN products p ON p.id = sr.product_id
       WHERE ${salesWhere.join(' AND ')}
-    `).get(...salesParams) as any;
+    `, salesParams);
 
     // Filter conditions for products
     let prodWhere: string[] = ["p.status = 'ACTIVE'"];
@@ -69,13 +69,13 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Current total stock & low stock count
-    const stockStats = db.prepare(`
+    const stockStats = await db.queryOne<any>(`
       SELECT 
         COALESCE(SUM(p.current_stock), 0) as total_stock,
         COALESCE(SUM(CASE WHEN p.current_stock <= p.min_stock_alert THEN 1 ELSE 0 END), 0) as low_stock_count
       FROM products p
       WHERE ${prodWhere.join(' AND ')}
-    `).get(...prodParams) as any;
+    `, prodParams);
 
     // 3. Exact Inventory Valuation from remaining lots: SUM(quantity_remaining * unit_cost)
     let lotWhere: string[] = ["il.quantity_remaining > 0", "p.status = 'ACTIVE'"];
@@ -95,29 +95,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const lotValuationRow = db.prepare(`
+    const lotValuationRow = await db.queryOne<any>(`
       SELECT 
         COALESCE(SUM(il.quantity_remaining * il.unit_cost), 0) as lot_valuation
       FROM inventory_lots il
       JOIN products p ON p.id = il.product_id
       WHERE ${lotWhere.join(' AND ')}
-    `).get(...lotParams) as { lot_valuation: number };
+    `, lotParams);
 
-    const stockValuation = lotValuationRow?.lot_valuation || 0;
+    const stockValuation = Number(lotValuationRow?.lot_valuation || 0);
 
     return NextResponse.json({
       success: true,
       data: {
-        revenue: salesStats?.total_revenue || 0,
-        cogs: salesStats?.total_cost || 0,
-        profit: salesStats?.total_profit || 0,
-        salesCount: salesStats?.sales_count || 0,
-        soldQuantity: salesStats?.sold_quantity || 0,
-        cancelledCount: salesStats?.cancelled_count || 0,
-        cancelledRevenue: salesStats?.cancelled_revenue || 0,
-        currentTotalStock: stockStats?.total_stock || 0,
+        revenue: Number(salesStats?.total_revenue || 0),
+        cogs: Number(salesStats?.total_cost || 0),
+        profit: Number(salesStats?.total_profit || 0),
+        salesCount: Number(salesStats?.sales_count || 0),
+        soldQuantity: Number(salesStats?.sold_quantity || 0),
+        cancelledCount: Number(salesStats?.cancelled_count || 0),
+        cancelledRevenue: Number(salesStats?.cancelled_revenue || 0),
+        currentTotalStock: Number(stockStats?.total_stock || 0),
         stockValuation: stockValuation,
-        lowStockCount: stockStats?.low_stock_count || 0,
+        lowStockCount: Number(stockStats?.low_stock_count || 0),
         periodLabel: label,
         dateRange: {
           startDate,

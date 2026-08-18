@@ -32,13 +32,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (q) {
-      whereClauses.push('(il.lot_code LIKE ? OR p.name LIKE ? OR p.sku LIKE ?)');
+      whereClauses.push('(il.lot_code ILIKE ? OR p.name ILIKE ? OR p.sku ILIKE ?)');
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countResult = db.prepare(`
+    const countResult = await db.queryOne<any>(`
       SELECT 
         COUNT(il.id) as total,
         COALESCE(SUM(il.quantity_received), 0) as sum_received,
@@ -47,12 +47,12 @@ export async function GET(request: NextRequest) {
       FROM inventory_lots il
       JOIN products p ON p.id = il.product_id
       ${whereSql}
-    `).get(...params) as any;
+    `, params);
 
-    const total = countResult?.total || 0;
+    const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const lots = db.prepare(`
+    const lots = await db.query<any>(`
       SELECT 
         il.id,
         il.lot_code,
@@ -82,15 +82,15 @@ export async function GET(request: NextRequest) {
       ${whereSql}
       ORDER BY il.purchase_date DESC, il.id DESC
       LIMIT ? OFFSET ?
-    `).all(...params, limit, offset) as any[];
+    `, [...params, limit, offset]);
 
     return NextResponse.json({
       success: true,
       data: lots,
       summary: {
-        totalReceived: countResult?.sum_received || 0,
-        totalRemaining: countResult?.sum_remaining || 0,
-        totalRemainingValue: countResult?.sum_remaining_value || 0,
+        totalReceived: Number(countResult?.sum_received || 0),
+        totalRemaining: Number(countResult?.sum_remaining || 0),
+        totalRemainingValue: Number(countResult?.sum_remaining_value || 0),
         lotCount: total,
       },
       pagination: {

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     let params: any[] = [];
 
     if (q) {
-      whereClauses.push(`(p.sku LIKE ? OR p.name LIKE ?)`);
+      whereClauses.push(`(p.sku ILIKE ? OR p.name ILIKE ?)`);
       params.push(`%${q}%`, `%${q}%`);
     }
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const summary = db.prepare(`
+    const summary = await db.queryOne<any>(`
       SELECT 
         COUNT(p.id) as total_products,
         COALESCE(SUM(p.current_stock), 0) as total_stock,
@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(CASE WHEN p.current_stock <= p.min_stock_alert THEN 1 ELSE 0 END), 0) as low_stock_count
       FROM products p
       ${whereSql}
-    `).get(...params) as any;
+    `, params);
 
-    const items = db.prepare(`
+    const items = await db.query(`
       SELECT 
         p.id, p.sku, p.name, p.current_stock, p.min_stock_alert,
         p.current_cost_price, p.current_selling_price,
@@ -50,17 +50,17 @@ export async function GET(request: NextRequest) {
       JOIN product_types pt ON pt.id = p.product_type_id
       ${whereSql}
       ORDER BY is_low_stock DESC, p.current_stock ASC
-    `).all(...params);
+    `, params);
 
     return NextResponse.json({
       success: true,
       data: {
         summary: {
-          totalProducts: summary?.total_products || 0,
-          totalStock: summary?.total_stock || 0,
-          totalStockItems: summary?.total_stock || 0,
-          totalValuation: summary?.total_stock_valuation || 0,
-          lowStockCount: summary?.low_stock_count || 0,
+          totalProducts: Number(summary?.total_products || 0),
+          totalStock: Number(summary?.total_stock || 0),
+          totalStockItems: Number(summary?.total_stock || 0),
+          totalValuation: Number(summary?.total_stock_valuation || 0),
+          lowStockCount: Number(summary?.low_stock_count || 0),
         },
         items,
       },

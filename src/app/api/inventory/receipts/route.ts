@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const receiptResult = runTransaction((database) => {
-      const product = database.prepare('SELECT id, sku, name, current_stock, current_cost_price FROM products WHERE id = ?').get(productId) as any;
+    const receiptResult = await db.transaction(async (tx) => {
+      const product = await tx.queryOne<any>('SELECT id, sku, name, current_stock, current_cost_price FROM products WHERE id = ?', [productId]);
       if (!product) {
         throw new Error('Sản phẩm không tồn tại.');
       }
@@ -48,26 +48,26 @@ export async function POST(request: NextRequest) {
       const lotCode = `LOT-${cleanDate}-${product.sku}-${Date.now().toString().slice(-4)}`;
 
       // 1. Create Import Header
-      const importInfo = database.prepare(`
+      const importInfo = await tx.execute(`
         INSERT INTO imports (import_code, supplier_id, import_date, total_amount, note, created_by)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(importCode, supplierId || null, date, totalAmount, note ? note.trim() : null, user.id);
+      `, [importCode, supplierId || null, date, totalAmount, note ? note.trim() : null, user.id]);
 
-      const importId = Number(importInfo.lastInsertRowid);
+      const importId = Number(importInfo.lastInsertId);
 
       // 2. Create Import Item
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO import_items (import_id, product_id, quantity, unit_cost_price, total_amount)
         VALUES (?, ?, ?, ?, ?)
-      `).run(importId, productId, qty, cost, totalAmount);
+      `, [importId, productId, qty, cost, totalAmount]);
 
       // 3. Create INVENTORY LOT (FIFO tracking)
-      const lotInfo = database.prepare(`
+      const lotInfo = await tx.execute(`
         INSERT INTO inventory_lots (
           lot_code, product_id, purchase_date, quantity_received, quantity_remaining,
           unit_cost, supplier_id, import_id, note, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      `, [
         lotCode,
         productId,
         date,
@@ -78,46 +78,49 @@ export async function POST(request: NextRequest) {
         importId,
         note ? note.trim() : `Nhập kho phiếu ${importCode}`,
         user.id
-      );
+      ]);
 
-      const lotId = Number(lotInfo.lastInsertRowid);
+      const lotId = Number(lotInfo.lastInsertId);
 
       // 4. Insert Cost Price History
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO cost_price_history (product_id, cost_price, effective_from, note, created_by)
         VALUES (?, ?, ?, ?, ?)
-      `).run(productId, cost, date, `Nhập kho theo phiếu ${importCode} (Lô ${lotCode})`, user.id);
+      `, [productId, cost, date, `Nhập kho theo phiếu ${importCode} (Lô ${lotCode})`, user.id]);
 
       // 5. Calculate weighted average cost of all remaining lots for this product
-      const remainingLotsSummary = database.prepare(`
+      const remainingLotsSummary = await tx.queryOne<any>(`
         SELECT 
           COALESCE(SUM(quantity_remaining), 0) as total_rem,
           COALESCE(SUM(quantity_remaining * unit_cost), 0) as total_val
         FROM inventory_lots
         WHERE product_id = ? AND quantity_remaining > 0
-      `).get(productId) as { total_rem: number; total_val: number };
+      `, [productId]);
 
-      const newStock = product.current_stock + qty;
-      const weightedAvgCost = remainingLotsSummary.total_rem > 0
-        ? Math.round(remainingLotsSummary.total_val / remainingLotsSummary.total_rem)
+      const totalRem = Number(remainingLotsSummary?.total_rem || 0);
+      const totalVal = Number(remainingLotsSummary?.total_val || 0);
+
+      const newStock = Number(product.current_stock) + qty;
+      const weightedAvgCost = totalRem > 0
+        ? Math.round(totalVal / totalRem)
         : cost;
 
       // 6. Update Product Stock & Weighted Average Cost
-      database.prepare(`
+      await tx.execute(`
         UPDATE products
         SET current_stock = ?,
             current_cost_price = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(newStock, weightedAvgCost, productId);
+      `, [newStock, weightedAvgCost, productId]);
 
       // 7. Create Stock Movement (PURCHASE)
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO stock_movements (
           product_id, movement_type, quantity_change, balance_after,
           movement_date, reference_type, reference_id, note, created_by
         ) VALUES (?, 'PURCHASE', ?, ?, ?, 'imports', ?, ?, ?)
-      `).run(
+      `, [
         productId,
         qty,
         newStock,
@@ -125,13 +128,13 @@ export async function POST(request: NextRequest) {
         importId,
         `Nhập kho phiếu ${importCode} (Lô: ${lotCode})` + (note ? `: ${note}` : ''),
         user.id
-      );
+      ]);
 
       // 8. Audit Log
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
         VALUES (?, 'STOCK_IMPORT_LOT', 'INVENTORY_LOTS', ?, ?)
-      `).run(user.id, lotId.toString(), JSON.stringify({
+      `, [user.id, (lotId || 0).toString(), JSON.stringify({
         import_code: importCode,
         lot_code: lotCode,
         product_sku: product.sku,
@@ -139,7 +142,7 @@ export async function POST(request: NextRequest) {
         unit_cost: cost,
         total_amount: totalAmount,
         balance_after: newStock,
-      }));
+      })]);
 
       return {
         importId,

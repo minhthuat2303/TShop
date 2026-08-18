@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 
     const { startDate, endDate } = resolveDateRange(period, customStart, customEnd);
 
-    // Build filter conditions
     let whereClauses: string[] = ["p.status = 'ACTIVE'"];
     let params: any[] = [];
 
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.join(' AND ');
 
-    const rawRows = db.prepare(`
+    const rawRows = await db.query<any>(`
       SELECT 
         c.name as category_name,
         pt.name as product_type_name,
@@ -83,7 +82,7 @@ export async function GET(request: NextRequest) {
       ) imports ON imports.product_id = p.id
       WHERE ${whereSql}
       ORDER BY c.name ASC, pt.name ASC, p.name ASC
-    `).all(...params) as any[];
+    `, params);
 
     const excelData = rawRows.map((r) => ({
       'Danh mục': r.category_name,
@@ -103,7 +102,6 @@ export async function GET(request: NextRequest) {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // Apply number formatting #,##0 to all numeric cells (Requirement 2)
     for (const cellKey of Object.keys(worksheet)) {
       if (cellKey.startsWith('!')) continue;
       const cell = worksheet[cellKey];
@@ -112,7 +110,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Set column auto width
     worksheet['!cols'] = [
       { wch: 18 }, // Danh mục
       { wch: 20 }, // Loại SP
@@ -132,7 +129,6 @@ export async function GET(request: NextRequest) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Thống kê tổng thể');
 
-    // Generate binary buffer using Uint8Array
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     const uint8 = new Uint8Array(buffer);
 

@@ -9,7 +9,7 @@ interface Props {
 export async function GET(request: NextRequest, props: Props) {
   try {
     const { id } = await props.params;
-    const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    const category = await db.queryOne('SELECT * FROM categories WHERE id = ?', [id]);
 
     if (!category) {
       return NextResponse.json(
@@ -41,7 +41,7 @@ export async function PUT(request: NextRequest, props: Props) {
     const body = await request.json();
     const { name, description, status } = body;
 
-    const oldCat = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as any;
+    const oldCat = await db.queryOne<any>('SELECT * FROM categories WHERE id = ?', [id]);
     if (!oldCat) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy danh mục.' } },
@@ -49,21 +49,21 @@ export async function PUT(request: NextRequest, props: Props) {
       );
     }
 
-    db.prepare(`
+    await db.execute(`
       UPDATE categories
       SET name = COALESCE(?, name),
           description = COALESCE(?, description),
           status = COALESCE(?, status),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(name?.trim(), description !== undefined ? description?.trim() : oldCat.description, status, id);
+    `, [name?.trim(), description !== undefined ? description?.trim() : oldCat.description, status, id]);
 
-    const updated = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    const updated = await db.queryOne('SELECT * FROM categories WHERE id = ?', [id]);
 
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json, new_value_json)
       VALUES (?, 'UPDATE_CATEGORY', 'CATEGORIES', ?, ?, ?)
-    `).run(user.id, id, JSON.stringify(oldCat), JSON.stringify(updated));
+    `, [user.id, id, JSON.stringify(oldCat), JSON.stringify(updated)]);
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
@@ -87,8 +87,8 @@ export async function DELETE(request: NextRequest, props: Props) {
     const { id } = await props.params;
 
     // Check if category has associated products
-    const prodCount = db.prepare('SELECT COUNT(*) as c FROM products WHERE category_id = ?').get(id) as any;
-    if (prodCount.c > 0) {
+    const prodCount = await db.queryOne<any>('SELECT COUNT(*) as c FROM products WHERE category_id = ?', [id]);
+    if (prodCount && Number(prodCount.c) > 0) {
       return NextResponse.json(
         {
           success: false,
@@ -102,8 +102,8 @@ export async function DELETE(request: NextRequest, props: Props) {
     }
 
     // Check if category has associated product types
-    const typeCount = db.prepare('SELECT COUNT(*) as c FROM product_types WHERE category_id = ?').get(id) as any;
-    if (typeCount.c > 0) {
+    const typeCount = await db.queryOne<any>('SELECT COUNT(*) as c FROM product_types WHERE category_id = ?', [id]);
+    if (typeCount && Number(typeCount.c) > 0) {
       return NextResponse.json(
         {
           success: false,
@@ -116,13 +116,13 @@ export async function DELETE(request: NextRequest, props: Props) {
       );
     }
 
-    const old = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
-    db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+    const old = await db.queryOne('SELECT * FROM categories WHERE id = ?', [id]);
+    await db.execute('DELETE FROM categories WHERE id = ?', [id]);
 
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json)
       VALUES (?, 'DELETE_CATEGORY', 'CATEGORIES', ?, ?)
-    `).run(user.id, id, JSON.stringify(old));
+    `, [user.id, id, JSON.stringify(old)]);
 
     return NextResponse.json({ success: true, data: { message: 'Đã xoá danh mục thành công.' } });
   } catch (error: any) {

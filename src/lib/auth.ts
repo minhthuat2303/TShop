@@ -55,24 +55,20 @@ export async function getCurrentUser(request?: NextRequest): Promise<UserSession
   return null;
 }
 
-export function getUserById(id: number): User | null {
-  const user = db.prepare(`
+export async function getUserById(id: number): Promise<User | null> {
+  return await db.queryOne<User>(`
     SELECT id, username, password_hash, full_name, role, status, created_at, updated_at
     FROM users
     WHERE id = ?
-  `).get(id) as User | undefined;
-
-  return user || null;
+  `, [id]);
 }
 
-export function getUserByUsername(username: string): User | null {
-  const user = db.prepare(`
+export async function getUserByUsername(username: string): Promise<User | null> {
+  return await db.queryOne<User>(`
     SELECT id, username, password_hash, full_name, role, status, created_at, updated_at
     FROM users
     WHERE username = ?
-  `).get(username) as User | undefined;
-
-  return user || null;
+  `, [username]);
 }
 
 export { COOKIE_NAME };

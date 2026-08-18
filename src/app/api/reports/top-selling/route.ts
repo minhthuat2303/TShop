@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const { startDate, endDate } = resolveDateRange(period, customStart, customEnd);
 
     // Top selling by quantity & revenue
-    const topProducts = db.prepare(`
+    const topProducts = await db.query(`
       SELECT 
         p.id, p.sku, p.name,
         c.name as category_name,
@@ -27,13 +27,14 @@ export async function GET(request: NextRequest) {
       JOIN categories c ON c.id = p.category_id
       JOIN product_types pt ON pt.id = p.product_type_id
       WHERE sr.sale_date >= ? AND sr.sale_date <= ?
-      GROUP BY p.id
+        AND COALESCE(sr.status, 'COMPLETED') = 'COMPLETED'
+      GROUP BY p.id, p.sku, p.name, c.name, pt.name, p.current_stock
       ORDER BY sold_quantity DESC, total_revenue DESC
       LIMIT ?
-    `).all(startDate, endDate, limit);
+    `, [startDate, endDate, limit]);
 
     // Slow moving products (0 sales in period)
-    const slowProducts = db.prepare(`
+    const slowProducts = await db.query(`
       SELECT 
         p.id, p.sku, p.name, p.current_stock, p.current_cost_price,
         (p.current_stock * p.current_cost_price) as stock_valuation,
@@ -46,11 +47,12 @@ export async function GET(request: NextRequest) {
         AND p.id NOT IN (
           SELECT DISTINCT product_id 
           FROM sales_records 
-          WHERE sale_date >= '${startDate}' AND sale_date <= '${endDate}'
+          WHERE sale_date >= ? AND sale_date <= ?
+            AND COALESCE(status, 'COMPLETED') = 'COMPLETED'
         )
       ORDER BY p.current_stock DESC
       LIMIT ?
-    `).all(limit);
+    `, [startDate, endDate, limit]);
 
     return NextResponse.json({
       success: true,

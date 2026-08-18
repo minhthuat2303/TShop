@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
 
     const { startDate, endDate } = resolveDateRange(period, customStart, customEnd);
 
-    // Calculate days diff to determine adaptive granularity if not explicitly passed
     const startMs = new Date(startDate).getTime();
     const endMs = new Date(endDate).getTime();
     const diffDays = Math.ceil(Math.abs(endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
@@ -30,7 +29,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Build filter query for products
     let whereClauses: string[] = [
       `sr.sale_date >= ?`,
       `sr.sale_date <= ?`,
@@ -54,25 +52,10 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.join(' AND ');
 
-    // Grouping expression according to granularity
-    // SQLite: '%Y-%m-%d' for day, '%Y-W%W' for week, '%Y-%m' for month
-    let dateGroupExpr = "sr.sale_date";
-    let dateLabelExpr = "sr.sale_date";
-
-    if (granularity === 'month') {
-      dateGroupExpr = "strftime('%Y-%m', sr.sale_date)";
-      dateLabelExpr = "strftime('%m/%Y', sr.sale_date)";
-    } else if (granularity === 'week') {
-      dateGroupExpr = "strftime('%Y-W%W', sr.sale_date)";
-      dateLabelExpr = "strftime('T%W/%Y', sr.sale_date)";
-    }
-
-    // Aggregate revenue & profit from sales_records (Snapshot values)
-    const rows = db.prepare(`
+    // Aggregate daily stats (100% ANSI SQL compatible across Postgres and SQLite)
+    const dailyRows = await db.query<any>(`
       SELECT 
-        ${dateGroupExpr} as time_key,
-        MIN(sr.sale_date) as start_date,
-        MAX(sr.sale_date) as end_date,
+        sr.sale_date as time_key,
         COUNT(sr.id) as transaction_count,
         COALESCE(SUM(sr.quantity), 0) as sold_quantity,
         COALESCE(SUM(sr.total_revenue), 0) as revenue,
@@ -81,60 +64,88 @@ export async function GET(request: NextRequest) {
       FROM sales_records sr
       JOIN products p ON p.id = sr.product_id
       WHERE ${whereSql}
-      GROUP BY ${dateGroupExpr}
-      ORDER BY MIN(sr.sale_date) ASC
-    `).all(...params) as any[];
+      GROUP BY sr.sale_date
+      ORDER BY sr.sale_date ASC
+    `, params);
 
-    // If day granularity and in <= 31 days range, fill in missing days with 0 for smooth line
-    let chartData = rows;
-    if (granularity === 'day' && diffDays <= 31) {
+    // Grouping according to granularity
+    let chartData: any[] = [];
+
+    if (granularity === 'day') {
       const rowMap = new Map<string, any>();
-      rows.forEach((r) => rowMap.set(r.time_key, r));
+      dailyRows.forEach((r) => {
+        const dStr = typeof r.time_key === 'string' ? r.time_key.slice(0, 10) : new Date(r.time_key).toISOString().split('T')[0];
+        rowMap.set(dStr, {
+          revenue: Number(r.revenue),
+          profit: Number(r.profit),
+          soldQuantity: Number(r.sold_quantity),
+          transactionCount: Number(r.transaction_count),
+        });
+      });
 
-      const filled: any[] = [];
-      const current = new Date(startDate);
-      const end = new Date(endDate);
+      if (diffDays <= 31) {
+        const current = new Date(startDate);
+        const end = new Date(endDate);
 
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        const existing = rowMap.get(dateStr);
+        while (current <= end) {
+          const dateStr = current.toISOString().split('T')[0];
+          const existing = rowMap.get(dateStr);
 
-        if (existing) {
-          filled.push({
-            timeKey: dateStr,
-            label: dateStr.slice(5).replace('-', '/'), // MM/DD
-            fullDate: dateStr,
-            revenue: existing.revenue,
-            profit: existing.profit,
-            soldQuantity: existing.sold_quantity,
-            transactionCount: existing.transaction_count,
-          });
-        } else {
-          filled.push({
-            timeKey: dateStr,
-            label: dateStr.slice(5).replace('-', '/'),
-            fullDate: dateStr,
-            revenue: 0,
-            profit: 0,
-            soldQuantity: 0,
-            transactionCount: 0,
-          });
+          filledPush(chartData, dateStr, dateStr.slice(5).replace('-', '/'), dateStr, existing);
+          current.setDate(current.getDate() + 1);
         }
-        current.setDate(current.getDate() + 1);
+      } else {
+        dailyRows.forEach((r) => {
+          const dStr = typeof r.time_key === 'string' ? r.time_key.slice(0, 10) : new Date(r.time_key).toISOString().split('T')[0];
+          chartData.push({
+            timeKey: dStr,
+            label: dStr.slice(5).replace('-', '/'),
+            fullDate: dStr,
+            revenue: Number(r.revenue),
+            profit: Number(r.profit),
+            soldQuantity: Number(r.sold_quantity),
+            transactionCount: Number(r.transaction_count),
+          });
+        });
       }
-      chartData = filled;
+    } else if (granularity === 'month') {
+      const monthMap = new Map<string, { revenue: number; profit: number; soldQuantity: number; transactionCount: number }>();
+      dailyRows.forEach((r) => {
+        const dStr = typeof r.time_key === 'string' ? r.time_key.slice(0, 10) : new Date(r.time_key).toISOString().split('T')[0];
+        const mKey = dStr.slice(0, 7); // YYYY-MM
+        const cur = monthMap.get(mKey) || { revenue: 0, profit: 0, soldQuantity: 0, transactionCount: 0 };
+        cur.revenue += Number(r.revenue);
+        cur.profit += Number(r.profit);
+        cur.soldQuantity += Number(r.sold_quantity);
+        cur.transactionCount += Number(r.transaction_count);
+        monthMap.set(mKey, cur);
+      });
+
+      Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b)).forEach(([mKey, val]) => {
+        chartData.push({
+          timeKey: mKey,
+          label: `${mKey.slice(5)}/${mKey.slice(0, 4)}`,
+          fullDate: mKey,
+          revenue: val.revenue,
+          profit: val.profit,
+          soldQuantity: val.soldQuantity,
+          transactionCount: val.transactionCount,
+        });
+      });
     } else {
-      chartData = rows.map((r) => ({
-        timeKey: r.time_key,
-        label: granularity === 'month' 
-          ? r.time_key.slice(5) + '/' + r.time_key.slice(0, 4)
-          : r.time_key,
-        fullDate: `${r.start_date} ~ ${r.end_date}`,
-        revenue: r.revenue,
-        profit: r.profit,
-        soldQuantity: r.sold_quantity,
-        transactionCount: r.transaction_count,
-      }));
+      // Week granularity
+      chartData = dailyRows.map((r) => {
+        const dStr = typeof r.time_key === 'string' ? r.time_key.slice(0, 10) : new Date(r.time_key).toISOString().split('T')[0];
+        return {
+          timeKey: dStr,
+          label: dStr.slice(5).replace('-', '/'),
+          fullDate: dStr,
+          revenue: Number(r.revenue),
+          profit: Number(r.profit),
+          soldQuantity: Number(r.sold_quantity),
+          transactionCount: Number(r.transaction_count),
+        };
+      });
     }
 
     const totalRevenue = chartData.reduce((acc, d) => acc + d.revenue, 0);
@@ -155,5 +166,29 @@ export async function GET(request: NextRequest) {
       { success: false, error: { code: 'CHART_ERROR', message: error.message } },
       { status: 500 }
     );
+  }
+}
+
+function filledPush(arr: any[], timeKey: string, label: string, fullDate: string, existing?: any) {
+  if (existing) {
+    arr.push({
+      timeKey,
+      label,
+      fullDate,
+      revenue: existing.revenue,
+      profit: existing.profit,
+      soldQuantity: existing.soldQuantity,
+      transactionCount: existing.transactionCount,
+    });
+  } else {
+    arr.push({
+      timeKey,
+      label,
+      fullDate,
+      revenue: 0,
+      profit: 0,
+      soldQuantity: 0,
+      transactionCount: 0,
+    });
   }
 }

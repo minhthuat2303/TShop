@@ -16,7 +16,7 @@ export async function GET(
       );
     }
 
-    const lots = db.prepare(`
+    const lots = await db.query(`
       SELECT 
         il.id,
         il.lot_code,
@@ -38,12 +38,12 @@ export async function GET(
       LEFT JOIN users u ON u.id = il.created_by
       WHERE il.product_id = ?
       ORDER BY il.purchase_date DESC, il.id DESC
-    `).all(productId) as any[];
+    `, [productId]) as any[];
 
     // Calculate totals
-    const totalReceived = lots.reduce((s, l) => s + l.quantity_received, 0);
-    const totalRemaining = lots.reduce((s, l) => s + l.quantity_remaining, 0);
-    const totalRemainingValue = lots.reduce((s, l) => s + l.remaining_value, 0);
+    const totalReceived = lots.reduce((s, l) => s + Number(l.quantity_received || 0), 0);
+    const totalRemaining = lots.reduce((s, l) => s + Number(l.quantity_remaining || 0), 0);
+    const totalRemainingValue = lots.reduce((s, l) => s + Number(l.remaining_value || 0), 0);
     const weightedAvgCost = totalRemaining > 0 ? Math.round(totalRemainingValue / totalRemaining) : 0;
 
     return NextResponse.json({

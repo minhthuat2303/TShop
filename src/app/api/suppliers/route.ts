@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const suppliers = db.prepare('SELECT * FROM suppliers ORDER BY name ASC').all();
+    const suppliers = await db.query('SELECT * FROM suppliers ORDER BY name ASC');
     return NextResponse.json({ success: true, data: suppliers });
   } catch (error: any) {
     return NextResponse.json(
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formattedCode = code.trim().toUpperCase();
-    const existing = db.prepare('SELECT id FROM suppliers WHERE code = ?').get(formattedCode);
+    const existing = await db.queryOne('SELECT id FROM suppliers WHERE code = ?', [formattedCode]);
     if (existing) {
       return NextResponse.json(
         { success: false, error: { code: 'DUPLICATE_CODE', message: `Mã nhà cung cấp '${formattedCode}' đã tồn tại.` } },
@@ -43,12 +43,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const info = db.prepare(`
+    const info = await db.execute(`
       INSERT INTO suppliers (code, name, phone, address, status)
       VALUES (?, ?, ?, ?, 'ACTIVE')
-    `).run(formattedCode, name.trim(), phone ? phone.trim() : null, address ? address.trim() : null);
+    `, [formattedCode, name.trim(), phone ? phone.trim() : null, address ? address.trim() : null]);
 
-    const newSupplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(info.lastInsertRowid);
+    const newId = info.lastInsertId;
+    const newSupplier = await db.queryOne('SELECT * FROM suppliers WHERE id = ?', [newId]);
 
     return NextResponse.json({ success: true, data: newSupplier }, { status: 201 });
   } catch (error: any) {

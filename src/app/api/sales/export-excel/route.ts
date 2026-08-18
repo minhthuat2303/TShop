@@ -35,13 +35,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (q) {
-      whereClauses.push(`(sr.transaction_code LIKE ? OR p.name LIKE ? OR p.sku LIKE ? OR sr.note LIKE ?)`);
+      whereClauses.push(`(sr.transaction_code ILIKE ? OR p.name ILIKE ? OR p.sku ILIKE ? OR sr.note ILIKE ?)`);
       params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const records = db.prepare(`
+    const records = await db.query<any>(`
       SELECT 
         sr.id, sr.transaction_code, sr.sale_date, sr.quantity,
         sr.unit_price_at_sale, sr.cost_price_at_sale, 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN users canceller ON canceller.id = sr.cancelled_by
       ${whereSql}
       ORDER BY sr.sale_date DESC, sr.id DESC
-    `).all(...params) as any[];
+    `, params);
 
     const excelData = records.map((r) => ({
       'Mã giao dịch': r.transaction_code,
@@ -86,7 +86,6 @@ export async function GET(request: NextRequest) {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // Apply number formatting #,##0 to numeric cells
     for (const cellKey of Object.keys(worksheet)) {
       if (cellKey.startsWith('!')) continue;
       const cell = worksheet[cellKey];
@@ -95,7 +94,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Set column widths
     worksheet['!cols'] = [
       { wch: 22 }, // Mã GD
       { wch: 13 }, // Ngày bán

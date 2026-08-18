@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security checks: file extension
     const fileName = file.name.toLowerCase();
     if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
       return NextResponse.json(
@@ -33,7 +32,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security check: file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, error: { code: 'FILE_TOO_LARGE', message: 'Kích thước file không được vượt quá 5MB.' } },
@@ -61,11 +59,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process Products Excel Preview
     if (entityType === 'products') {
-      const existingProducts = db.prepare('SELECT * FROM products').all() as any[];
-      const categories = db.prepare('SELECT id, code, name FROM categories').all() as any[];
-      const productTypes = db.prepare('SELECT id, code, name, category_id FROM product_types').all() as any[];
+      const existingProducts = await db.query('SELECT * FROM products');
+      const categories = await db.query('SELECT id, code, name FROM categories');
+      const productTypes = await db.query('SELECT id, code, name, category_id FROM product_types');
 
       const catMap = new Map<string, any>();
       categories.forEach((c) => {
@@ -92,7 +89,7 @@ export async function POST(request: NextRequest) {
       const errors: any[] = [];
 
       rawRows.forEach((row, index) => {
-        const rowNumber = index + 2; // Header is line 1
+        const rowNumber = index + 2;
 
         const skuRaw = row['Mã SKU (*)'] || row['SKU'] || row['sku'] || row['Mã sản phẩm'];
         const nameRaw = row['Tên sản phẩm (*)'] || row['Tên sản phẩm'] || row['name'];
@@ -103,7 +100,6 @@ export async function POST(request: NextRequest) {
         const stockRaw = row['Số lượng tồn'] ?? row['Tồn kho'] ?? row['stock'];
         const minAlertRaw = row['Ngưỡng cảnh báo tồn'] ?? row['Cảnh báo tồn'] ?? 5;
 
-        // Validation
         if (!skuRaw) {
           errors.push({ rowNumber, message: 'Thiếu mã SKU/Mã sản phẩm bắt buộc.', data: row });
           return;
@@ -124,7 +120,6 @@ export async function POST(request: NextRequest) {
 
         const name = String(nameRaw).trim();
 
-        // Validate Category
         const catKey = String(catRaw || '').trim().toUpperCase();
         const category = catMap.get(catKey) || catMap.get(catKey.toLowerCase());
         if (!category) {
@@ -132,7 +127,6 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Validate Product Type
         const typeKey = String(typeRaw || '').trim().toUpperCase();
         const productType = typeMap.get(typeKey) || typeMap.get(typeKey.toLowerCase());
         if (!productType) {
@@ -167,16 +161,15 @@ export async function POST(request: NextRequest) {
             min_stock_alert: minAlert,
           });
         } else {
-          // Check for differences
           const changes: string[] = [];
           if (existing.name !== name) changes.push(`Tên: '${existing.name}' → '${name}'`);
           if (existing.category_id !== category.id) changes.push(`Danh mục đổi sang '${category.name}'`);
           if (existing.product_type_id !== productType.id) changes.push(`Loại SP đổi sang '${productType.name}'`);
           if (Number(existing.current_selling_price) !== sellingPrice) {
-            changes.push(`Giá bán: ${existing.current_selling_price.toLocaleString('vi-VN')}đ → ${sellingPrice.toLocaleString('vi-VN')}đ`);
+            changes.push(`Giá bán: ${Number(existing.current_selling_price).toLocaleString('vi-VN')}đ → ${sellingPrice.toLocaleString('vi-VN')}đ`);
           }
           if (Number(existing.current_cost_price) !== costPrice) {
-            changes.push(`Giá vốn: ${existing.current_cost_price.toLocaleString('vi-VN')}đ → ${costPrice.toLocaleString('vi-VN')}đ`);
+            changes.push(`Giá vốn: ${Number(existing.current_cost_price).toLocaleString('vi-VN')}đ → ${costPrice.toLocaleString('vi-VN')}đ`);
           }
 
           if (changes.length > 0) {
@@ -191,7 +184,7 @@ export async function POST(request: NextRequest) {
               product_type_name: productType.name,
               cost_price: costPrice,
               selling_price: sellingPrice,
-              stock: existing.current_stock, // Stock is not overwritten directly by master data
+              stock: existing.current_stock,
               min_stock_alert: minAlert,
               changes,
             });

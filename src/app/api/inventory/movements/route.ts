@@ -37,16 +37,16 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countResult = db.prepare(`
+    const countResult = await db.queryOne<{ total: number }>(`
       SELECT COUNT(*) as total
       FROM stock_movements sm
       ${whereSql}
-    `).get(...params) as { total: number };
+    `, params);
 
-    const total = countResult?.total || 0;
+    const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const movements = db.prepare(`
+    const movements = await db.query(`
       SELECT 
         sm.id, sm.product_id, sm.movement_type, sm.quantity_change, sm.balance_after,
         sm.movement_date, sm.reference_type, sm.reference_id, sm.note, sm.created_at,
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       ${whereSql}
       ORDER BY sm.movement_date DESC, sm.id DESC
       LIMIT ? OFFSET ?
-    `).all(...params, limit, offset);
+    `, [...params, limit, offset]);
 
     return NextResponse.json({
       success: true,

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest, props: Props) {
   try {
     const { id } = await props.params;
 
-    const movements = db.prepare(`
+    const movements = await db.query(`
       SELECT 
         sm.id, sm.product_id, sm.movement_type, sm.quantity_change, sm.balance_after,
         sm.movement_date, sm.reference_type, sm.reference_id, sm.note, sm.created_at,
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, props: Props) {
       LEFT JOIN users u ON u.id = sm.created_by
       WHERE sm.product_id = ?
       ORDER BY sm.movement_date DESC, sm.id DESC
-    `).all(id);
+    `, [id]);
 
     return NextResponse.json({ success: true, data: movements });
   } catch (error: any) {

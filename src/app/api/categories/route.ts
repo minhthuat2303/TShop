@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 // GET all categories with product and type counts
 export async function GET() {
   try {
-    const categories = db.prepare(`
+    const categories = await db.query(`
       SELECT 
         c.id, c.code, c.name, c.description, c.status, c.created_at, c.updated_at,
         COUNT(DISTINCT pt.id) as type_count,
@@ -13,9 +13,9 @@ export async function GET() {
       FROM categories c
       LEFT JOIN product_types pt ON pt.category_id = c.id
       LEFT JOIN products p ON p.category_id = c.id
-      GROUP BY c.id
+      GROUP BY c.id, c.code, c.name, c.description, c.status, c.created_at, c.updated_at
       ORDER BY c.name ASC
-    `).all();
+    `);
 
     return NextResponse.json({
       success: true,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formattedCode = code.trim().toUpperCase();
-    const existing = db.prepare('SELECT id FROM categories WHERE code = ?').get(formattedCode);
+    const existing = await db.queryOne('SELECT id FROM categories WHERE code = ?', [formattedCode]);
     if (existing) {
       return NextResponse.json(
         { success: false, error: { code: 'DUPLICATE_CODE', message: `Mã danh mục '${formattedCode}' đã tồn tại.` } },
@@ -59,18 +59,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const info = db.prepare(`
+    const info = await db.execute(`
       INSERT INTO categories (code, name, description, status)
       VALUES (?, ?, ?, 'ACTIVE')
-    `).run(formattedCode, name.trim(), description ? description.trim() : null);
+    `, [formattedCode, name.trim(), description ? description.trim() : null]);
+
+    const newId = info.lastInsertId;
 
     // Audit log
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
       VALUES (?, 'CREATE_CATEGORY', 'CATEGORIES', ?, ?)
-    `).run(user.id, info.lastInsertRowid.toString(), JSON.stringify({ code: formattedCode, name }));
+    `, [user.id, (newId || 0).toString(), JSON.stringify({ code: formattedCode, name })]);
 
-    const newCategory = db.prepare('SELECT * FROM categories WHERE id = ?').get(info.lastInsertRowid);
+    const newCategory = await db.queryOne('SELECT * FROM categories WHERE id = ?', [newId]);
 
     return NextResponse.json({
       success: true,

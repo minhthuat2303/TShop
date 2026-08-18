@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = getUserByUsername(username);
+    const user = await getUserByUsername(username);
 
     if (!user || user.status !== 'ACTIVE') {
       return NextResponse.json(
@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
 
     // Log audit login
     try {
-      db.prepare(`
+      await db.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
         VALUES (?, 'USER_LOGIN', 'USERS', ?, ?)
-      `).run(user.id, user.id.toString(), JSON.stringify({ username: user.username, role: user.role }));
+      `, [user.id, user.id.toString(), JSON.stringify({ username: user.username, role: user.role })]);
     } catch (e) {
       console.error('Failed to write audit log:', e);
     }

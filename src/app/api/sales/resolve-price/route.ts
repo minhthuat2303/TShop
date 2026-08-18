@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const product = db.prepare(`
+    const product = await db.queryOne<any>(`
       SELECT id, sku, name, current_cost_price, current_selling_price, current_stock, status
       FROM products
       WHERE id = ?
-    `).get(productId) as any;
+    `, [productId]);
 
     if (!product) {
       return NextResponse.json(
@@ -28,25 +28,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Resolve selling price at specific date
-    const priceRecord = db.prepare(`
+    const priceRecord = await db.queryOne<any>(`
       SELECT price, effective_from
       FROM price_history
       WHERE product_id = ? AND effective_from <= ?
       ORDER BY effective_from DESC, id DESC
       LIMIT 1
-    `).get(productId, date) as { price: number; effective_from: string } | undefined;
+    `, [productId, date]);
 
     // Resolve cost price at specific date
-    const costRecord = db.prepare(`
+    const costRecord = await db.queryOne<any>(`
       SELECT cost_price, effective_from
       FROM cost_price_history
       WHERE product_id = ? AND effective_from <= ?
       ORDER BY effective_from DESC, id DESC
       LIMIT 1
-    `).get(productId, date) as { cost_price: number; effective_from: string } | undefined;
+    `, [productId, date]);
 
-    const resolvedSellingPrice = priceRecord ? priceRecord.price : product.current_selling_price;
-    const resolvedCostPrice = costRecord ? costRecord.cost_price : product.current_cost_price;
+    const resolvedSellingPrice = priceRecord ? Number(priceRecord.price) : Number(product.current_selling_price);
+    const resolvedCostPrice = costRecord ? Number(costRecord.cost_price) : Number(product.current_cost_price);
 
     return NextResponse.json({
       success: true,
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         productId: product.id,
         sku: product.sku,
         name: product.name,
-        currentStock: product.current_stock,
+        currentStock: Number(product.current_stock),
         status: product.status,
         date,
         sellingPrice: resolvedSellingPrice,

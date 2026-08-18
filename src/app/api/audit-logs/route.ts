@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
 
-    const countResult = db.prepare('SELECT COUNT(*) as total FROM audit_logs').get() as { total: number };
-    const total = countResult?.total || 0;
+    const countResult = await db.queryOne<{ total: number }>('SELECT COUNT(*) as total FROM audit_logs');
+    const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const logs = db.prepare(`
+    const logs = await db.query(`
       SELECT 
         a.id, a.user_id, a.action, a.entity_name, a.entity_id,
         a.old_value_json, a.new_value_json, a.ip_address, a.created_at,
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN users u ON u.id = a.user_id
       ORDER BY a.created_at DESC, a.id DESC
       LIMIT ? OFFSET ?
-    `).all(limit, offset);
+    `, [limit, offset]);
 
     return NextResponse.json({
       success: true,

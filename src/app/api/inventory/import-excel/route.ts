@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Load active products map
-    const products = db.prepare("SELECT id, sku, name, current_stock, current_cost_price FROM products WHERE status = 'ACTIVE'").all() as any[];
+    const products = await db.query<any>("SELECT id, sku, name, current_stock, current_cost_price FROM products WHERE status = 'ACTIVE'");
     const prodMap = new Map<string, any>();
     products.forEach((p) => prodMap.set(p.sku.toUpperCase(), p));
 
@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
         return;
       }
 
-      // If user left import quantity empty or 0, skip this product
       if (importQtyRaw === undefined || importQtyRaw === null || importQtyRaw === '' || Number(importQtyRaw) === 0) {
         skippedRows.push({ rowNumber, sku, name: product.name, message: 'Không nhập số lượng (Bỏ qua).' });
         return;
@@ -88,21 +87,22 @@ export async function POST(request: NextRequest) {
 
       const unitCost = newCostRaw !== undefined && newCostRaw !== null && String(newCostRaw).trim() !== ''
         ? parseFloat(newCostRaw)
-        : product.current_cost_price;
+        : Number(product.current_cost_price);
 
       if (isNaN(unitCost) || unitCost < 0) {
         errorRows.push({ rowNumber, sku, message: `Đơn giá nhập không hợp lệ: '${newCostRaw}'.` });
         return;
       }
 
+      const currentStock = Number(product.current_stock);
       validRows.push({
         rowNumber,
         productId: product.id,
         sku: product.sku,
         name: product.name,
-        currentStock: product.current_stock,
+        currentStock: currentStock,
         importQuantity: importQty,
-        balanceAfter: product.current_stock + importQty,
+        balanceAfter: currentStock + importQty,
         unitCostPrice: unitCost,
         totalAmount: importQty * unitCost,
         note: String(noteRaw).trim(),
@@ -133,42 +133,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const commitResult = runTransaction((database) => {
+    const commitResult = await db.transaction(async (tx) => {
       const cleanDate = importDate.replace(/-/g, '');
       const importCode = `NK-EXCEL-${cleanDate}-${Date.now().toString().slice(-4)}`;
       const totalAmount = validRows.reduce((sum, r) => sum + r.totalAmount, 0);
 
       // 1. Create Import Header
-      const headerInfo = database.prepare(`
+      const headerInfo = await tx.execute(`
         INSERT INTO imports (import_code, supplier_id, import_date, total_amount, note, created_by)
         VALUES (?, NULL, ?, ?, ?, ?)
-      `).run(
+      `, [
         importCode,
         importDate,
         totalAmount,
         `Nhập kho hàng loạt từ file Excel: ${file.name}`,
         user.id
-      );
+      ]);
 
-      const importId = Number(headerInfo.lastInsertRowid);
+      const importId = Number(headerInfo.lastInsertId);
 
       // 2. Process each valid row
       for (const row of validRows) {
         const lotCode = `LOT-${cleanDate}-${row.sku}-${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`;
 
         // Insert import item
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO import_items (import_id, product_id, quantity, unit_cost_price, total_amount)
           VALUES (?, ?, ?, ?, ?)
-        `).run(importId, row.productId, row.importQuantity, row.unitCostPrice, row.totalAmount);
+        `, [importId, row.productId, row.importQuantity, row.unitCostPrice, row.totalAmount]);
 
         // Create Inventory Lot for FIFO
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO inventory_lots (
             lot_code, product_id, purchase_date, quantity_received, quantity_remaining,
             unit_cost, supplier_id, import_id, note, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
-        `).run(
+        `, [
           lotCode,
           row.productId,
           importDate,
@@ -178,43 +178,46 @@ export async function POST(request: NextRequest) {
           importId,
           `Nhập kho Excel ${importCode}` + (row.note ? `: ${row.note}` : ''),
           user.id
-        );
+        ]);
 
-        // Update cost price history if price specified
-        database.prepare(`
+        // Update cost price history
+        await tx.execute(`
           INSERT INTO cost_price_history (product_id, cost_price, effective_from, note, created_by)
           VALUES (?, ?, ?, ?, ?)
-        `).run(row.productId, row.unitCostPrice, importDate, `Nhập kho Excel phiếu ${importCode} (Lô ${lotCode})`, user.id);
+        `, [row.productId, row.unitCostPrice, importDate, `Nhập kho Excel phiếu ${importCode} (Lô ${lotCode})`, user.id]);
 
         // Calculate weighted average cost of remaining lots
-        const remainingLotsSummary = database.prepare(`
+        const remainingLotsSummary = await tx.queryOne<any>(`
           SELECT 
             COALESCE(SUM(quantity_remaining), 0) as total_rem,
             COALESCE(SUM(quantity_remaining * unit_cost), 0) as total_val
           FROM inventory_lots
           WHERE product_id = ? AND quantity_remaining > 0
-        `).get(row.productId) as { total_rem: number; total_val: number };
+        `, [row.productId]);
 
-        const weightedAvgCost = remainingLotsSummary.total_rem > 0
-          ? Math.round(remainingLotsSummary.total_val / remainingLotsSummary.total_rem)
+        const totalRem = Number(remainingLotsSummary?.total_rem || 0);
+        const totalVal = Number(remainingLotsSummary?.total_val || 0);
+
+        const weightedAvgCost = totalRem > 0
+          ? Math.round(totalVal / totalRem)
           : row.unitCostPrice;
 
         // Update product current stock and current cost price
-        database.prepare(`
+        await tx.execute(`
           UPDATE products
           SET current_stock = ?,
               current_cost_price = ?,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
-        `).run(row.balanceAfter, weightedAvgCost, row.productId);
+        `, [row.balanceAfter, weightedAvgCost, row.productId]);
 
         // Insert stock movements (PURCHASE)
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO stock_movements (
             product_id, movement_type, quantity_change, balance_after,
             movement_date, reference_type, reference_id, note, created_by
           ) VALUES (?, 'PURCHASE', ?, ?, ?, 'imports', ?, ?, ?)
-        `).run(
+        `, [
           row.productId,
           row.importQuantity,
           row.balanceAfter,
@@ -222,20 +225,20 @@ export async function POST(request: NextRequest) {
           importId,
           `Nhập kho Excel ${importCode} (Lô: ${lotCode})` + (row.note ? `: ${row.note}` : ''),
           user.id
-        );
+        ]);
       }
 
       // 3. Log Audit
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
         VALUES (?, 'STOCK_IMPORT_EXCEL', 'IMPORTS', ?, ?)
-      `).run(user.id, importId.toString(), JSON.stringify({
+      `, [user.id, importId.toString(), JSON.stringify({
         import_code: importCode,
         file_name: file.name,
         item_count: validRows.length,
         total_quantity: validRows.reduce((sum, r) => sum + r.importQuantity, 0),
         total_amount: totalAmount,
-      }));
+      })]);
 
       return {
         importId,

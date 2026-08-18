@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, props: Props) {
   try {
     const { id } = await props.params;
 
-    const product = db.prepare(`
+    const product = await db.queryOne(`
       SELECT 
         p.*,
         c.name as category_name,
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, props: Props) {
       JOIN categories c ON c.id = p.category_id
       JOIN product_types pt ON pt.id = p.product_type_id
       WHERE p.id = ?
-    `).get(id);
+    `, [id]);
 
     if (!product) {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, props: Props) {
       status,
     } = body;
 
-    const oldProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(id) as any;
+    const oldProduct = await db.queryOne<any>('SELECT * FROM products WHERE id = ?', [id]);
     if (!oldProduct) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy sản phẩm.' } },
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, props: Props) {
       );
     }
 
-    db.prepare(`
+    await db.execute(`
       UPDATE products
       SET name = COALESCE(?, name),
           category_id = COALESCE(?, category_id),
@@ -74,16 +74,16 @@ export async function PUT(request: NextRequest, props: Props) {
           status = COALESCE(?, status),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(
+    `, [
       name?.trim(),
       category_id,
       product_type_id,
       min_stock_alert !== undefined ? Number(min_stock_alert) : oldProduct.min_stock_alert,
       status,
       id
-    );
+    ]);
 
-    const updated = db.prepare(`
+    const updated = await db.queryOne(`
       SELECT 
         p.*,
         c.name as category_name,
@@ -92,12 +92,12 @@ export async function PUT(request: NextRequest, props: Props) {
       JOIN categories c ON c.id = p.category_id
       JOIN product_types pt ON pt.id = p.product_type_id
       WHERE p.id = ?
-    `).get(id);
+    `, [id]);
 
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json, new_value_json)
       VALUES (?, 'UPDATE_PRODUCT', 'PRODUCTS', ?, ?, ?)
-    `).run(user.id, id, JSON.stringify(oldProduct), JSON.stringify(updated));
+    `, [user.id, id, JSON.stringify(oldProduct), JSON.stringify(updated)]);
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
@@ -129,7 +129,7 @@ export async function PATCH(request: NextRequest, props: Props) {
       );
     }
 
-    const oldProduct = db.prepare('SELECT id, status FROM products WHERE id = ?').get(id) as any;
+    const oldProduct = await db.queryOne<any>('SELECT id, status FROM products WHERE id = ?', [id]);
     if (!oldProduct) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy sản phẩm.' } },
@@ -137,16 +137,16 @@ export async function PATCH(request: NextRequest, props: Props) {
       );
     }
 
-    db.prepare(`
+    await db.execute(`
       UPDATE products
       SET status = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(status, id);
+    `, [status, id]);
 
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json, new_value_json)
       VALUES (?, 'TOGGLE_PRODUCT_STATUS', 'PRODUCTS', ?, ?, ?)
-    `).run(user.id, id, JSON.stringify({ status: oldProduct.status }), JSON.stringify({ status }));
+    `, [user.id, id, JSON.stringify({ status: oldProduct.status }), JSON.stringify({ status })]);
 
     return NextResponse.json({ success: true, data: { id, status } });
   } catch (error: any) {
@@ -170,8 +170,8 @@ export async function DELETE(request: NextRequest, props: Props) {
     const { id } = await props.params;
 
     // Check if product has sales records
-    const salesCount = db.prepare('SELECT COUNT(*) as c FROM sales_records WHERE product_id = ?').get(id) as any;
-    if (salesCount.c > 0) {
+    const salesCount = await db.queryOne<any>('SELECT COUNT(*) as c FROM sales_records WHERE product_id = ?', [id]);
+    if (salesCount && Number(salesCount.c) > 0) {
       return NextResponse.json(
         {
           success: false,
@@ -185,8 +185,8 @@ export async function DELETE(request: NextRequest, props: Props) {
     }
 
     // Check if product has stock movements
-    const movementsCount = db.prepare('SELECT COUNT(*) as c FROM stock_movements WHERE product_id = ?').get(id) as any;
-    if (movementsCount.c > 1) {
+    const movementsCount = await db.queryOne<any>('SELECT COUNT(*) as c FROM stock_movements WHERE product_id = ?', [id]);
+    if (movementsCount && Number(movementsCount.c) > 1) {
       return NextResponse.json(
         {
           success: false,
@@ -199,7 +199,7 @@ export async function DELETE(request: NextRequest, props: Props) {
       );
     }
 
-    const old = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+    const old = await db.queryOne('SELECT * FROM products WHERE id = ?', [id]);
     if (!old) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy sản phẩm.' } },
@@ -208,15 +208,15 @@ export async function DELETE(request: NextRequest, props: Props) {
     }
 
     // Cascade delete price history & clean movement
-    db.prepare('DELETE FROM price_history WHERE product_id = ?').run(id);
-    db.prepare('DELETE FROM cost_price_history WHERE product_id = ?').run(id);
-    db.prepare('DELETE FROM stock_movements WHERE product_id = ?').run(id);
-    db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    await db.execute('DELETE FROM price_history WHERE product_id = ?', [id]);
+    await db.execute('DELETE FROM cost_price_history WHERE product_id = ?', [id]);
+    await db.execute('DELETE FROM stock_movements WHERE product_id = ?', [id]);
+    await db.execute('DELETE FROM products WHERE id = ?', [id]);
 
-    db.prepare(`
+    await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json)
       VALUES (?, 'DELETE_PRODUCT', 'PRODUCTS', ?, ?)
-    `).run(user.id, id, JSON.stringify(old));
+    `, [user.id, id, JSON.stringify(old)]);
 
     return NextResponse.json({ success: true, data: { message: 'Đã xóa sản phẩm thành công.' } });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 interface Props {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, props: Props) {
   try {
     const { id } = await props.params;
 
-    const history = db.prepare(`
+    const history = await db.query(`
       SELECT 
         cph.id, cph.product_id, cph.cost_price, cph.effective_from, cph.note, cph.created_at,
         u.full_name as creator_name
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, props: Props) {
       LEFT JOIN users u ON u.id = cph.created_by
       WHERE cph.product_id = ?
       ORDER BY cph.effective_from DESC, cph.id DESC
-    `).all(id);
+    `, [id]);
 
     return NextResponse.json({ success: true, data: history });
   } catch (error: any) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest, props: Props) {
       );
     }
 
-    const product = db.prepare('SELECT id, current_cost_price FROM products WHERE id = ?').get(id) as any;
+    const product = await db.queryOne<any>('SELECT id, current_cost_price FROM products WHERE id = ?', [id]);
     if (!product) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy sản phẩm.' } },
@@ -63,30 +63,30 @@ export async function POST(request: NextRequest, props: Props) {
 
     const newCost = Number(cost_price);
 
-    runTransaction((database) => {
-      database.prepare(`
+    await db.transaction(async (tx) => {
+      await tx.execute(`
         INSERT INTO cost_price_history (product_id, cost_price, effective_from, note, created_by)
         VALUES (?, ?, ?, ?, ?)
-      `).run(id, newCost, effective_from, note ? note.trim() : 'Cập nhật giá vốn', user.id);
+      `, [id, newCost, effective_from, note ? note.trim() : 'Cập nhật giá vốn', user.id]);
 
-      database.prepare(`
+      await tx.execute(`
         UPDATE products
         SET current_cost_price = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(newCost, id);
+      `, [newCost, id]);
 
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, old_value_json, new_value_json)
         VALUES (?, 'UPDATE_COST_PRICE', 'PRODUCTS', ?, ?, ?)
-      `).run(
+      `, [
         user.id,
         id,
         JSON.stringify({ cost_price: product.current_cost_price }),
         JSON.stringify({ cost_price: newCost, effective_from, note })
-      );
+      ]);
     });
 
-    const updatedHistory = db.prepare(`
+    const updatedHistory = await db.query(`
       SELECT 
         cph.id, cph.product_id, cph.cost_price, cph.effective_from, cph.note, cph.created_at,
         u.full_name as creator_name
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest, props: Props) {
       LEFT JOIN users u ON u.id = cph.created_by
       WHERE cph.product_id = ?
       ORDER BY cph.effective_from DESC, cph.id DESC
-    `).all(id);
+    `, [id]);
 
     return NextResponse.json({ success: true, data: updatedHistory }, { status: 201 });
   } catch (error: any) {

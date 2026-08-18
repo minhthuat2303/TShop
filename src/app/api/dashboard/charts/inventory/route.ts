@@ -50,16 +50,15 @@ export async function GET(request: NextRequest) {
     const prodWhereSql = prodWhere.join(' AND ');
 
     // 1. Current stock of the filtered product set
-    const currentStockRow = db.prepare(`
+    const currentStockRow = await db.queryOne<{ total_current_stock: number }>(`
       SELECT COALESCE(SUM(p.current_stock), 0) as total_current_stock
       FROM products p
       WHERE ${prodWhereSql}
-    `).get(...prodParams) as { total_current_stock: number };
+    `, prodParams);
 
-    const currentTotalStock = currentStockRow?.total_current_stock || 0;
+    const currentTotalStock = Number(currentStockRow?.total_current_stock || 0);
 
-    // 2. Query all stock movements of the filtered products from startDate up to today
-    // (needed to compute interval stock balances backward and forward)
+    // 2. Query stock movements
     let moveWhere: string[] = [];
     let moveParams: any[] = [];
 
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
     const moveWhereSql = moveWhere.length > 0 ? `AND ${moveWhere.join(' AND ')}` : '';
 
     // Fetch movements in period
-    const periodMovements = db.prepare(`
+    const periodMovements = await db.query<any>(`
       SELECT 
         sm.movement_date,
         sm.movement_type,
@@ -90,19 +89,18 @@ export async function GET(request: NextRequest) {
       WHERE sm.movement_date >= ? AND sm.movement_date <= ?
         ${moveWhereSql}
       ORDER BY sm.movement_date ASC, sm.id ASC
-    `).all(startDate, endDate, ...moveParams) as any[];
+    `, [startDate, endDate, ...moveParams]);
 
-    // Fetch movements after endDate (to accurately project stock balance at endDate back from current stock)
-    const futureMovements = db.prepare(`
+    // Fetch movements after endDate
+    const futureMovements = await db.queryOne<{ future_change: number }>(`
       SELECT COALESCE(SUM(sm.quantity_change), 0) as future_change
       FROM stock_movements sm
       JOIN products p ON p.id = sm.product_id
       WHERE sm.movement_date > ?
         ${moveWhereSql}
-    `).get(endDate, ...moveParams) as { future_change: number };
+    `, [endDate, ...moveParams]);
 
-    // Total stock balance at the end of endDate
-    const stockAtEndOfPeriod = currentTotalStock - (futureMovements?.future_change || 0);
+    const stockAtEndOfPeriod = currentTotalStock - Number(futureMovements?.future_change || 0);
 
     // Grouping by interval
     let timePoints: Array<{
@@ -128,24 +126,25 @@ export async function GET(request: NextRequest) {
         current.setDate(current.getDate() + 1);
       }
     } else if (granularity === 'month') {
-      const rows = db.prepare(`
-        SELECT DISTINCT strftime('%Y-%m', sm.movement_date) as m
-        FROM stock_movements sm
-        JOIN products p ON p.id = sm.product_id
-        WHERE sm.movement_date >= ? AND sm.movement_date <= ? ${moveWhereSql}
-        ORDER BY m ASC
-      `).all(startDate, endDate, ...moveParams) as any[];
+      const monthSet = new Set<string>();
+      periodMovements.forEach((m) => {
+        const dStr = typeof m.movement_date === 'string' ? m.movement_date.slice(0, 7) : new Date(m.movement_date).toISOString().slice(0, 7);
+        monthSet.add(dStr);
+      });
 
-      timePoints = rows.map((r) => ({
-        timeKey: r.m,
-        label: r.m.slice(5) + '/' + r.m.slice(0, 4),
-        fullDate: r.m,
-        startDate: `${r.m}-01`,
-        endDate: `${r.m}-31`,
+      if (monthSet.size === 0) {
+        monthSet.add(startDate.slice(0, 7));
+      }
+
+      timePoints = Array.from(monthSet).sort().map((m) => ({
+        timeKey: m,
+        label: `${m.slice(5)}/${m.slice(0, 4)}`,
+        fullDate: m,
+        startDate: `${m}-01`,
+        endDate: `${m}-31`,
       }));
     }
 
-    // If no specific intervals generated, fallback to daily points
     if (timePoints.length === 0) {
       timePoints.push({
         timeKey: startDate,
@@ -156,30 +155,26 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Now calculate for each interval:
-    // - purchase: sum of positive changes from PURCHASE
-    // - sales: sum of absolute changes from SALE
-    // - ending stock of that interval
     const chartData = timePoints.map((tp) => {
       let intervalPurchases = 0;
       let intervalSales = 0;
 
       periodMovements.forEach((m) => {
-        if (m.movement_date >= tp.startDate && m.movement_date <= tp.endDate) {
+        const mDate = typeof m.movement_date === 'string' ? m.movement_date.slice(0, 10) : new Date(m.movement_date).toISOString().split('T')[0];
+        if (mDate >= tp.startDate && mDate <= tp.endDate) {
           if (m.movement_type === 'PURCHASE') {
-            intervalPurchases += m.quantity_change;
+            intervalPurchases += Number(m.quantity_change);
           } else if (m.movement_type === 'SALE') {
-            intervalSales += Math.abs(m.quantity_change);
+            intervalSales += Math.abs(Number(m.quantity_change));
           }
         }
       });
 
-      // Compute stock at the end of tp.endDate:
-      // Stock(T) = stockAtEndOfPeriod - (all movements occurring between tp.endDate and endDate)
       let movementsAfterThis = 0;
       periodMovements.forEach((m) => {
-        if (m.movement_date > tp.endDate) {
-          movementsAfterThis += m.quantity_change;
+        const mDate = typeof m.movement_date === 'string' ? m.movement_date.slice(0, 10) : new Date(m.movement_date).toISOString().split('T')[0];
+        if (mDate > tp.endDate) {
+          movementsAfterThis += Number(m.quantity_change);
         }
       });
 

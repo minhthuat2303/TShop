@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, runTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     let params: any[] = [];
 
     if (q) {
-      whereClauses.push(`(p.sku LIKE ? OR p.name LIKE ?)`);
+      whereClauses.push(`(p.sku ILIKE ? OR p.name ILIKE ?)`);
       params.push(`%${q}%`, `%${q}%`);
     }
 
@@ -38,16 +38,16 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countResult = db.prepare(`
+    const countResult = await db.queryOne<{ total: number }>(`
       SELECT COUNT(*) as total
       FROM products p
       ${whereSql}
-    `).get(...params) as { total: number };
+    `, params);
 
-    const total = countResult.total;
+    const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const products = db.prepare(`
+    const products = await db.query(`
       SELECT 
         p.id, p.sku, p.name, p.category_id, p.product_type_id,
         p.current_cost_price, p.current_selling_price, p.current_stock,
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       ${whereSql}
       ORDER BY p.name ASC
       LIMIT ? OFFSET ?
-    `).all(...params, limit, offset);
+    `, [...params, limit, offset]);
 
     return NextResponse.json({
       success: true,
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const formattedSku = sku.trim().toUpperCase();
 
     // Check SKU existence
-    const existing = db.prepare('SELECT id FROM products WHERE sku = ?').get(formattedSku);
+    const existing = await db.queryOne('SELECT id FROM products WHERE sku = ?', [formattedSku]);
     if (existing) {
       return NextResponse.json(
         { success: false, error: { code: 'DUPLICATE_SKU', message: `Mã sản phẩm / SKU '${formattedSku}' đã tồn tại.` } },
@@ -126,15 +126,15 @@ export async function POST(request: NextRequest) {
 
     const today = effective_date || new Date().toISOString().split('T')[0];
 
-    const result = runTransaction((database) => {
+    const result = await db.transaction(async (tx) => {
       // 1. Insert product
-      const info = database.prepare(`
+      const info = await tx.execute(`
         INSERT INTO products (
           sku, name, category_id, product_type_id,
           current_cost_price, current_selling_price, current_stock,
           min_stock_alert, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
-      `).run(
+      `, [
         formattedSku,
         name.trim(),
         category_id,
@@ -143,48 +143,54 @@ export async function POST(request: NextRequest) {
         Number(selling_price) || 0,
         Number(initial_stock) || 0,
         Number(min_stock_alert) || 5
-      );
+      ]);
 
-      const newProductId = Number(info.lastInsertRowid);
+      const newProductId = Number(info.lastInsertId);
 
       // 2. Insert initial price history
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO price_history (product_id, price, effective_from, note, created_by)
         VALUES (?, ?, ?, 'Khởi tạo giá niêm yết ban đầu', ?)
-      `).run(newProductId, Number(selling_price) || 0, today, user.id);
+      `, [newProductId, Number(selling_price) || 0, today, user.id]);
 
       // 3. Insert initial cost price history
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO cost_price_history (product_id, cost_price, effective_from, note, created_by)
         VALUES (?, ?, ?, 'Khởi tạo giá vốn ban đầu', ?)
-      `).run(newProductId, Number(cost_price) || 0, today, user.id);
+      `, [newProductId, Number(cost_price) || 0, today, user.id]);
 
-      // 4. If initial stock > 0, insert stock movement
+      // 4. If initial stock > 0, insert stock movement & lot
       if (Number(initial_stock) > 0) {
-        database.prepare(`
+        await tx.execute(`
           INSERT INTO stock_movements (
             product_id, movement_type, quantity_change, balance_after,
             movement_date, reference_type, note, created_by
           ) VALUES (?, 'PURCHASE', ?, ?, ?, 'INITIAL_STOCK', 'Khởi tạo tồn kho ban đầu', ?)
-        `).run(newProductId, Number(initial_stock), Number(initial_stock), today, user.id);
+        `, [newProductId, Number(initial_stock), Number(initial_stock), today, user.id]);
+
+        const lotCode = `LOT-INIT-${formattedSku}-${Date.now().toString().slice(-4)}`;
+        await tx.execute(`
+          INSERT INTO inventory_lots (lot_code, product_id, purchase_date, quantity_received, quantity_remaining, unit_cost, note, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, 'Khởi tạo lô tồn kho ban đầu', ?)
+        `, [lotCode, newProductId, today, Number(initial_stock), Number(initial_stock), Number(cost_price) || 0, user.id]);
       }
 
       // 5. Audit log
-      database.prepare(`
+      await tx.execute(`
         INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
         VALUES (?, 'CREATE_PRODUCT', 'PRODUCTS', ?, ?)
-      `).run(user.id, newProductId.toString(), JSON.stringify({
+      `, [user.id, newProductId.toString(), JSON.stringify({
         sku: formattedSku,
         name,
         selling_price,
         cost_price,
         initial_stock,
-      }));
+      })]);
 
       return newProductId;
     });
 
-    const newProduct = db.prepare(`
+    const newProduct = await db.queryOne(`
       SELECT 
         p.*,
         c.name as category_name,
@@ -193,7 +199,7 @@ export async function POST(request: NextRequest) {
       JOIN categories c ON c.id = p.category_id
       JOIN product_types pt ON pt.id = p.product_type_id
       WHERE p.id = ?
-    `).get(result);
+    `, [result]);
 
     return NextResponse.json({ success: true, data: newProduct }, { status: 201 });
   } catch (error: any) {

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const { startDate, endDate } = resolveDateRange(period, customStart, customEnd);
 
-    const rows = db.prepare(`
+    const rows = await db.query(`
       SELECT 
         sr.sale_date,
         COUNT(sr.id) as order_count,
@@ -21,9 +21,10 @@ export async function GET(request: NextRequest) {
         SUM(sr.profit) as total_profit
       FROM sales_records sr
       WHERE sr.sale_date >= ? AND sr.sale_date <= ?
+        AND COALESCE(sr.status, 'COMPLETED') = 'COMPLETED'
       GROUP BY sr.sale_date
       ORDER BY sr.sale_date ASC
-    `).all(startDate, endDate);
+    `, [startDate, endDate]);
 
     return NextResponse.json({
       success: true,
