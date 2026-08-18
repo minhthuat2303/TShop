@@ -16,6 +16,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { DateFilterPeriod } from '@/lib/date-utils';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 interface Category {
   id: number;
@@ -616,19 +617,19 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState<string>('revenue');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
-  const [allProducts, setAllProducts] = useState<ProductOption[]>([]);
+  const [categories, setCategories] = useState<Category[]>(() => getClientCached('categories') || []);
+  const [productTypes, setProductTypes] = useState<ProductType[]>(() => getClientCached('product_types:all') || []);
+  const [allProducts, setAllProducts] = useState<ProductOption[]>(() => getClientCached('products_all') || []);
 
-  const [summary, setSummary] = useState<any>(null);
-  const [chart1Data, setChart1Data] = useState<any[]>([]);
-  const [chart2Data, setChart2Data] = useState<any[]>([]);
-  const [tableData, setTableData] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(() => getClientCached(`dash_summary:this_month`));
+  const [chart1Data, setChart1Data] = useState<any[]>(() => getClientCached(`dash_chart1:this_month`) || []);
+  const [chart2Data, setChart2Data] = useState<any[]>(() => getClientCached(`dash_chart2:this_month`) || []);
+  const [tableData, setTableData] = useState<any>(() => getClientCached(`dash_table:this_month`));
 
-  const [loadingSummary, setLoadingSummary] = useState(true);
-  const [loadingChart1, setLoadingChart1] = useState(true);
-  const [loadingChart2, setLoadingChart2] = useState(true);
-  const [loadingTable, setLoadingTable] = useState(true);
+  const [loadingSummary, setLoadingSummary] = useState(() => !getClientCached(`dash_summary:this_month`));
+  const [loadingChart1, setLoadingChart1] = useState(() => !getClientCached(`dash_chart1:this_month`));
+  const [loadingChart2, setLoadingChart2] = useState(() => !getClientCached(`dash_chart2:this_month`));
+  const [loadingTable, setLoadingTable] = useState(() => !getClientCached(`dash_table:this_month`));
   const [exportingExcel, setExportingExcel] = useState(false);
   const [errorChart1, setErrorChart1] = useState<string | null>(null);
   const [errorChart2, setErrorChart2] = useState<string | null>(null);
@@ -637,23 +638,36 @@ export default function DashboardPage() {
     fetch('/api/categories')
       .then((res) => res.json())
       .then((json) => {
-        if (json.success) setCategories(json.data);
-      });
+        if (json.success) {
+          setCategories(json.data);
+          setClientCached('categories', json.data);
+        }
+      }).catch(() => {});
 
     fetch('/api/products?status=ACTIVE&limit=300')
       .then((res) => res.json())
       .then((json) => {
-        if (json.success) setAllProducts(json.data);
-      });
+        if (json.success) {
+          setAllProducts(json.data);
+          setClientCached('products_all', json.data);
+        }
+      }).catch(() => {});
   }, []);
 
   useEffect(() => {
+    const cacheKey = `product_types:${selectedCategory || 'all'}`;
+    const cached = getClientCached(cacheKey);
+    if (cached) setProductTypes(cached);
+
     const url = selectedCategory ? `/api/product-types?categoryId=${selectedCategory}` : '/api/product-types';
     fetch(url)
       .then((res) => res.json())
       .then((json) => {
-        if (json.success) setProductTypes(json.data);
-      });
+        if (json.success) {
+          setProductTypes(json.data);
+          setClientCached(cacheKey, json.data);
+        }
+      }).catch(() => {});
   }, [selectedCategory]);
 
   const availableProducts = useMemo(() => {
@@ -675,79 +689,66 @@ export default function DashboardPage() {
     return params;
   }, [period, customStart, customEnd, selectedCategory, selectedType, selectedProduct]);
 
-  const loadSummary = useCallback(async () => {
-    setLoadingSummary(true);
+  const loadAllDashboardData = useCallback(async () => {
+    const filterKey = getFilterParams();
+    const cachedSummary = getClientCached(`dash_summary:${filterKey}`);
+    const cachedChart1 = getClientCached(`dash_chart1:${filterKey}`);
+    const cachedChart2 = getClientCached(`dash_chart2:${filterKey}`);
+    const cachedTable = getClientCached(`dash_table:${filterKey}:${sortBy}:${sortOrder}:${searchQuery}`);
+
+    if (cachedSummary) setSummary(cachedSummary);
+    if (cachedChart1) setChart1Data(cachedChart1);
+    if (cachedChart2) setChart2Data(cachedChart2);
+    if (cachedTable) setTableData(cachedTable);
+
+    if (!cachedSummary) setLoadingSummary(true);
+    if (!cachedChart1) setLoadingChart1(true);
+    if (!cachedChart2) setLoadingChart2(true);
+    if (!cachedTable) setLoadingTable(true);
+
+    let tableParams = `${filterKey}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+    if (searchQuery) tableParams += `&q=${encodeURIComponent(searchQuery)}`;
+
     try {
-      const res = await fetch(`/api/dashboard/summary?${getFilterParams()}`);
-      const json = await res.json();
-      if (json.success) setSummary(json.data);
+      // Parallel execution of all 4 endpoints
+      const [sumRes, c1Res, c2Res, tabRes] = await Promise.allSettled([
+        fetch(`/api/dashboard/summary?${filterKey}`).then((r) => r.json()),
+        fetch(`/api/dashboard/charts/revenue-profit?${filterKey}`).then((r) => r.json()),
+        fetch(`/api/dashboard/charts/inventory?${filterKey}`).then((r) => r.json()),
+        fetch(`/api/dashboard/aggregate-table?${tableParams}`).then((r) => r.json()),
+      ]);
+
+      if (sumRes.status === 'fulfilled' && sumRes.value.success) {
+        setSummary(sumRes.value.data);
+        setClientCached(`dash_summary:${filterKey}`, sumRes.value.data);
+      }
+      if (c1Res.status === 'fulfilled' && c1Res.value.success) {
+        setChart1Data(c1Res.value.data || []);
+        setClientCached(`dash_chart1:${filterKey}`, c1Res.value.data || []);
+        setErrorChart1(null);
+      }
+      if (c2Res.status === 'fulfilled' && c2Res.value.success) {
+        setChart2Data(c2Res.value.data || []);
+        setClientCached(`dash_chart2:${filterKey}`, c2Res.value.data || []);
+        setErrorChart2(null);
+      }
+      if (tabRes.status === 'fulfilled' && tabRes.value.success) {
+        setTableData(tabRes.value.data);
+        setClientCached(`dash_table:${filterKey}:${sortBy}:${sortOrder}:${searchQuery}`, tabRes.value.data);
+      }
     } catch (err) {
-      console.error('Failed to load summary:', err);
+      console.error('Error fetching dashboard in parallel:', err);
     } finally {
       setLoadingSummary(false);
-    }
-  }, [getFilterParams]);
-
-  const loadChart1 = useCallback(async () => {
-    setLoadingChart1(true);
-    setErrorChart1(null);
-    try {
-      const res = await fetch(`/api/dashboard/charts/revenue-profit?${getFilterParams()}`);
-      const json = await res.json();
-      if (json.success) {
-        setChart1Data(json.data || []);
-      } else {
-        setErrorChart1(json.error?.message || 'Lỗi tải biểu đồ doanh thu.');
-      }
-    } catch (err: any) {
-      setErrorChart1(err.message || 'Lỗi kết nối.');
-    } finally {
       setLoadingChart1(false);
-    }
-  }, [getFilterParams]);
-
-  const loadChart2 = useCallback(async () => {
-    setLoadingChart2(true);
-    setErrorChart2(null);
-    try {
-      const res = await fetch(`/api/dashboard/charts/inventory?${getFilterParams()}`);
-      const json = await res.json();
-      if (json.success) {
-        setChart2Data(json.data || []);
-      } else {
-        setErrorChart2(json.error?.message || 'Lỗi tải biểu đồ tồn kho.');
-      }
-    } catch (err: any) {
-      setErrorChart2(err.message || 'Lỗi kết nối.');
-    } finally {
       setLoadingChart2(false);
-    }
-  }, [getFilterParams]);
-
-  const loadTable = useCallback(async () => {
-    setLoadingTable(true);
-    try {
-      let tableParams = `${getFilterParams()}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-      if (searchQuery) tableParams += `&q=${encodeURIComponent(searchQuery)}`;
-
-      const res = await fetch(`/api/dashboard/aggregate-table?${tableParams}`);
-      const json = await res.json();
-      if (json.success) {
-        setTableData(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load table:', err);
-    } finally {
       setLoadingTable(false);
     }
   }, [getFilterParams, sortBy, sortOrder, searchQuery]);
 
   useEffect(() => {
-    loadSummary();
-    loadChart1();
-    loadChart2();
-    loadTable();
-  }, [loadSummary, loadChart1, loadChart2, loadTable]);
+    loadAllDashboardData();
+  }, [loadAllDashboardData]);
 
   const handlePeriodChange = (newPeriod: DateFilterPeriod) => {
     setPeriod(newPeriod);
@@ -857,7 +858,7 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <button
-              onClick={() => { loadSummary(); loadChart1(); loadChart2(); loadTable(); }}
+              onClick={() => loadAllDashboardData()}
               className="btn btn-secondary btn-sm"
               title="Làm mới toàn bộ Dashboard"
             >
@@ -910,7 +911,7 @@ export default function DashboardPage() {
               />
             </div>
             <button
-              onClick={() => { loadSummary(); loadChart1(); loadChart2(); loadTable(); }}
+              onClick={() => loadAllDashboardData()}
               className="btn btn-primary btn-sm"
               style={{ padding: '4px 12px' }}
               disabled={!customStart || !customEnd}
@@ -1067,7 +1068,7 @@ export default function DashboardPage() {
           ]}
           loading={loadingChart1}
           error={errorChart1}
-          onRetry={loadChart1}
+          onRetry={loadAllDashboardData}
           height={200}
         />
 
@@ -1082,7 +1083,7 @@ export default function DashboardPage() {
           ]}
           loading={loadingChart2}
           error={errorChart2}
-          onRetry={loadChart2}
+          onRetry={loadAllDashboardData}
           height={200}
         />
       </div>

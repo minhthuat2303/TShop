@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import serverCache from '@/lib/cache';
 
-// GET all categories with product and type counts
+// GET all categories with product and type counts (Cached)
 export async function GET() {
   try {
+    const cacheKey = 'categories:all';
+    const cached = serverCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached }, {
+        headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
+      });
+    }
+
     const categories = await db.query(`
       SELECT 
         c.id, c.code, c.name, c.description, c.status, c.created_at, c.updated_at,
@@ -17,9 +26,13 @@ export async function GET() {
       ORDER BY c.name ASC
     `);
 
+    serverCache.set(cacheKey, categories, 180, ['categories']);
+
     return NextResponse.json({
       success: true,
       data: categories,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -66,7 +79,8 @@ export async function POST(request: NextRequest) {
 
     const newId = info.lastInsertId;
 
-    // Audit log
+    serverCache.invalidateTags(['categories']);
+
     await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)
       VALUES (?, 'CREATE_CATEGORY', 'CATEGORIES', ?, ?)

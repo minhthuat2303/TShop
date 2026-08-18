@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import serverCache from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
+
+    const cacheKey = `product_types:${categoryId || 'all'}`;
+    const cached = serverCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached }, {
+        headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
+      });
+    }
 
     let query = `
       SELECT 
@@ -27,9 +36,13 @@ export async function GET(request: NextRequest) {
 
     const productTypes = await db.query(query, params);
 
+    serverCache.set(cacheKey, productTypes, 180, ['product_types']);
+
     return NextResponse.json({
       success: true,
       data: productTypes,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -82,6 +95,8 @@ export async function POST(request: NextRequest) {
     `, [category_id, formattedCode, name.trim(), description ? description.trim() : null]);
 
     const newId = info.lastInsertId;
+
+    serverCache.invalidateTags(['product_types']);
 
     await db.execute(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, new_value_json)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveDateRange } from '@/lib/date-utils';
+import serverCache from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +18,14 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'ASC' : 'DESC';
 
     const { startDate, endDate, label } = resolveDateRange(period, customStart, customEnd);
+
+    const cacheKey = `dash_table:${startDate}:${endDate}:${categoryId || 'all'}:${productTypeId || 'all'}:${productId || 'all'}:${q || ''}:${status}:${sortBy}:${sortOrder}`;
+    const cached = serverCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, data: cached }, {
+        headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
+      });
+    }
 
     let whereClauses: string[] = [];
     let params: any[] = [];
@@ -161,15 +170,21 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    const result = {
+      rows: formattedRows,
+      totals,
+      totalItems: formattedRows.length,
+      periodLabel: label,
+      dateRange: { startDate, endDate, period },
+    };
+
+    serverCache.set(cacheKey, result, 30, ['dashboard']);
+
     return NextResponse.json({
       success: true,
-      data: {
-        rows: formattedRows,
-        totals,
-        totalItems: formattedRows.length,
-        periodLabel: label,
-        dateRange: { startDate, endDate, period },
-      },
+      data: result,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
     });
   } catch (error: any) {
     return NextResponse.json(

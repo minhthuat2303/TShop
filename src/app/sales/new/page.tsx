@@ -28,6 +28,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import { getClientCached, setClientCached, clearClientCache } from '@/lib/client-cache';
 
 interface ProductItem {
   id: number;
@@ -57,11 +58,11 @@ interface SelectedSaleItem {
 export default function FastSalesPage() {
   const { user } = useAuth();
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [allProducts, setAllProducts] = useState<ProductItem[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<ProductItem[]>(() => getClientCached('products_all') || []);
+  const [categories, setCategories] = useState<any[]>(() => getClientCached('categories') || []);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loadingProds, setLoadingProds] = useState(true);
+  const [loadingProds, setLoadingProds] = useState(() => !getClientCached('products_all'));
 
   // Mobile POS view tab switcher ('catalog' | 'cart')
   const [mobilePosTab, setMobilePosTab] = useState<'catalog' | 'cart'>('catalog');
@@ -94,7 +95,6 @@ export default function FastSalesPage() {
 
   // Load products & categories
   const loadInitialData = async () => {
-    setLoadingProds(true);
     try {
       const [prodRes, catRes] = await Promise.all([
         fetch('/api/products?status=ACTIVE&limit=300'),
@@ -104,8 +104,14 @@ export default function FastSalesPage() {
       const prodJson = await prodRes.json();
       const catJson = await catRes.json();
 
-      if (prodJson.success) setAllProducts(prodJson.data);
-      if (catJson.success) setCategories(catJson.data);
+      if (prodJson.success) {
+        setAllProducts(prodJson.data);
+        setClientCached('products_all', prodJson.data);
+      }
+      if (catJson.success) {
+        setCategories(catJson.data);
+        setClientCached('categories', catJson.data);
+      }
     } catch (e) {
       console.error(e);
     } finally {

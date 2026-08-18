@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import serverCache from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,32 +39,41 @@ export async function GET(request: NextRequest) {
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const countResult = await db.queryOne<{ total: number }>(`
-      SELECT COUNT(*) as total
-      FROM products p
-      ${whereSql}
-    `, params);
+    const cacheKey = `products_list:${q || ''}:${categoryId || ''}:${productTypeId || ''}:${status || ''}:${page}:${limit}`;
+    const cached = serverCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({ success: true, ...cached }, {
+        headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
+      });
+    }
+
+    const [countResult, products] = await Promise.all([
+      db.queryOne<{ total: number }>(`
+        SELECT COUNT(*) as total
+        FROM products p
+        ${whereSql}
+      `, params),
+
+      db.query(`
+        SELECT 
+          p.id, p.sku, p.name, p.category_id, p.product_type_id,
+          p.current_cost_price, p.current_selling_price, p.current_stock,
+          p.min_stock_alert, p.status, p.created_at, p.updated_at,
+          c.name as category_name,
+          pt.name as product_type_name
+        FROM products p
+        JOIN categories c ON c.id = p.category_id
+        JOIN product_types pt ON pt.id = p.product_type_id
+        ${whereSql}
+        ORDER BY p.name ASC
+        LIMIT ? OFFSET ?
+      `, [...params, limit, offset])
+    ]);
 
     const total = Number(countResult?.total || 0);
     const totalPages = Math.ceil(total / limit);
 
-    const products = await db.query(`
-      SELECT 
-        p.id, p.sku, p.name, p.category_id, p.product_type_id,
-        p.current_cost_price, p.current_selling_price, p.current_stock,
-        p.min_stock_alert, p.status, p.created_at, p.updated_at,
-        c.name as category_name,
-        pt.name as product_type_name
-      FROM products p
-      JOIN categories c ON c.id = p.category_id
-      JOIN product_types pt ON pt.id = p.product_type_id
-      ${whereSql}
-      ORDER BY p.name ASC
-      LIMIT ? OFFSET ?
-    `, [...params, limit, offset]);
-
-    return NextResponse.json({
-      success: true,
+    const resultPayload = {
       data: products,
       pagination: {
         page,
@@ -71,6 +81,15 @@ export async function GET(request: NextRequest) {
         total,
         totalPages,
       },
+    };
+
+    serverCache.set(cacheKey, resultPayload, 60, ['products']);
+
+    return NextResponse.json({
+      success: true,
+      ...resultPayload,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
     });
   } catch (error: any) {
     return NextResponse.json(

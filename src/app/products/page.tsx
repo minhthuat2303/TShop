@@ -16,9 +16,10 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -30,11 +31,11 @@ export default function ProductsPage() {
   const [selectedType, setSelectedType] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Data states
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [productTypes, setProductTypes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data states with Instant Cache
+  const [products, setProducts] = useState<any[]>(() => getClientCached('products:list:initial') || []);
+  const [categories, setCategories] = useState<any[]>(() => getClientCached('categories') || []);
+  const [productTypes, setProductTypes] = useState<any[]>(() => getClientCached('product_types:all') || []);
+  const [loading, setLoading] = useState(() => !getClientCached('products:list:initial'));
 
   // Modals state
   const [showProductModal, setShowProductModal] = useState(false);
@@ -69,26 +70,42 @@ export default function ProductsPage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const loadData = async () => {
-    setLoading(true);
+    let prodUrl = `/api/products?limit=100`;
+    if (searchQuery) prodUrl += `&q=${encodeURIComponent(searchQuery)}`;
+    if (selectedCategory) prodUrl += `&categoryId=${selectedCategory}`;
+    if (selectedType) prodUrl += `&productTypeId=${selectedType}`;
+    if (statusFilter) prodUrl += `&status=${statusFilter}`;
+
+    const cacheKey = `products:${prodUrl}`;
+    const cached = getClientCached(cacheKey);
+    if (cached) {
+      setProducts(cached);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const [catRes, typeRes] = await Promise.all([
-        fetch('/api/categories'),
-        fetch('/api/product-types'),
+      const [catRes, typeRes, prodRes] = await Promise.allSettled([
+        fetch('/api/categories').then((r) => r.json()),
+        fetch('/api/product-types').then((r) => r.json()),
+        fetch(prodUrl).then((r) => r.json()),
       ]);
-      const catJson = await catRes.json();
-      const typeJson = await typeRes.json();
-      if (catJson.success) setCategories(catJson.data);
-      if (typeJson.success) setProductTypes(typeJson.data);
 
-      let prodUrl = `/api/products?limit=100`;
-      if (searchQuery) prodUrl += `&q=${encodeURIComponent(searchQuery)}`;
-      if (selectedCategory) prodUrl += `&categoryId=${selectedCategory}`;
-      if (selectedType) prodUrl += `&productTypeId=${selectedType}`;
-      if (statusFilter) prodUrl += `&status=${statusFilter}`;
-
-      const prodRes = await fetch(prodUrl);
-      const prodJson = await prodRes.json();
-      if (prodJson.success) setProducts(prodJson.data);
+      if (catRes.status === 'fulfilled' && catRes.value.success) {
+        setCategories(catRes.value.data);
+        setClientCached('categories', catRes.value.data);
+      }
+      if (typeRes.status === 'fulfilled' && typeRes.value.success) {
+        setProductTypes(typeRes.value.data);
+        setClientCached('product_types:all', typeRes.value.data);
+      }
+      if (prodRes.status === 'fulfilled' && prodRes.value.success) {
+        setProducts(prodRes.value.data);
+        setClientCached(cacheKey, prodRes.value.data);
+        if (!searchQuery && !selectedCategory && !selectedType && !statusFilter) {
+          setClientCached('products:list:initial', prodRes.value.data);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
