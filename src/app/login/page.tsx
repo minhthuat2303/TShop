@@ -50,37 +50,38 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '80vh',
+      minHeight: '85vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px',
+      padding: '12px',
+      width: '100%',
     }}>
       <div style={{
-        maxWidth: 420,
+        maxWidth: 400,
         width: '100%',
         backgroundColor: '#ffffff',
         border: '1px solid var(--border-subtle)',
-        borderRadius: 8,
-        padding: '32px 28px',
+        borderRadius: 12,
+        padding: '24px 20px',
         boxShadow: 'var(--shadow-md)',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{
             width: 48,
             height: 48,
             backgroundColor: '#eff6ff',
-            borderRadius: 8,
+            borderRadius: 10,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 12,
+            marginBottom: 10,
             border: '1px solid #bfdbfe'
           }}>
             <Store size={26} color="#2563eb" />
           </div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>T_SHOP MANAGEMENT</h1>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Hệ thống quản lý bán hàng & kho đồ chơi</p>
+          <h1 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a' }}>T_SHOP MANAGEMENT</h1>
+          <p style={{ fontSize: 12.5, color: '#64748b', marginTop: 3 }}>Hệ thống quản lý bán hàng & kho đồ chơi</p>
         </div>
 
         {error && (
@@ -88,13 +89,13 @@ export default function LoginPage() {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            padding: '10px 14px',
+            padding: '10px 12px',
             backgroundColor: '#fef2f2',
             border: '1px solid #fecaca',
             borderRadius: 6,
             color: '#dc2626',
-            fontSize: 13,
-            marginBottom: 18,
+            fontSize: 12.5,
+            marginBottom: 16,
           }}>
             <AlertCircle size={16} />
             <span>{error}</span>
@@ -102,45 +103,45 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label" htmlFor="username">Tên đăng nhập</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="username"
                 type="text"
                 className="form-input"
-                style={{ paddingLeft: 34 }}
+                style={{ paddingLeft: 34, height: 42 }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin / staff"
                 required
                 autoFocus
               />
-              <User size={16} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 11 }} />
+              <User size={16} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 13 }} />
             </div>
           </div>
 
-          <div className="form-group" style={{ marginBottom: 20 }}>
+          <div className="form-group" style={{ marginBottom: 18 }}>
             <label className="form-label" htmlFor="password">Mật khẩu</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="password"
                 type="password"
                 className="form-input"
-                style={{ paddingLeft: 34 }}
+                style={{ paddingLeft: 34, height: 42 }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mật khẩu"
                 required
               />
-              <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 11 }} />
+              <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: 10, top: 13 }} />
             </div>
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '10px 0', fontSize: 14 }}
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', height: 44, fontSize: 14.5 }}
             disabled={loading}
           >
             {loading ? 'Đang xác thực...' : 'Đăng nhập hệ thống'}
@@ -148,22 +149,24 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Tài khoản mặc định:</div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <div style={{ marginTop: 20, paddingTop: 14, borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Tài khoản mẫu:</div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setDemoAccount('admin')}
               className="btn btn-secondary btn-sm"
+              style={{ fontSize: 11.5 }}
             >
-              Admin (admin / admin123)
+              Admin (admin)
             </button>
             <button
               type="button"
               onClick={() => setDemoAccount('staff')}
               className="btn btn-secondary btn-sm"
+              style={{ fontSize: 11.5 }}
             >
-              Staff (staff / staff123)
+              Staff (staff)
             </button>
           </div>
         </div>

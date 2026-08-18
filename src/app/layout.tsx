@@ -1,12 +1,18 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '@/components/AuthContext';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: 'T_SHOP - Hệ Thống Quản Lý Shop Đồ Chơi',
   description: 'Website quản lý bán hàng, sản phẩm, kho và thống kê cho shop đồ chơi trẻ em',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -16,15 +22,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+      </head>
       <body>
         <AuthProvider>
-          <div className="app-container">
-            <Sidebar />
-            <div className="main-content">
-              <Header />
-              <main className="page-body">{children}</main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

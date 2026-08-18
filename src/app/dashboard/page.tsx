@@ -9,10 +9,10 @@ import {
   Search, 
   Download, 
   ArrowUpDown, 
-  Calendar,
-  AlertTriangle,
-  RefreshCw,
-  Filter,
+  Calendar, 
+  AlertTriangle, 
+  RefreshCw, 
+  Filter, 
   RotateCcw
 } from 'lucide-react';
 import { DateFilterPeriod } from '@/lib/date-utils';
@@ -63,7 +63,7 @@ function ProfessionalBarChart({
   loading,
   error,
   onRetry,
-  height = 170,
+  height = 200,
 }: BarChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -82,7 +82,7 @@ function ProfessionalBarChart({
     return { maxY: safeMax, minY: Math.min(0, min) };
   }, [data, series]);
 
-  const padding = { top: 14, right: 14, bottom: 26, left: 55 };
+  const padding = { top: 16, right: 14, bottom: 28, left: 52 };
   const svgWidth = 600;
   const svgHeight = height;
   const chartWidth = svgWidth - padding.left - padding.right;
@@ -117,20 +117,20 @@ function ProfessionalBarChart({
   const barWidth = Math.min(18, Math.max(4, (slotWidth * 0.7) / series.length));
 
   return (
-    <div className="card" style={{ marginBottom: 0, position: 'relative', overflow: 'hidden' }}>
-      <div className="card-header" style={{ padding: '8px 12px', flexWrap: 'wrap', gap: 6 }}>
-        <h3 className="card-title" style={{ fontSize: 13 }}>{title}</h3>
-        <div style={{ display: 'flex', gap: 10, fontSize: 11.5, alignItems: 'center' }}>
+    <div className="card" style={{ marginBottom: 0, position: 'relative' }}>
+      <div className="card-header" style={{ padding: '10px 14px', flexWrap: 'wrap', gap: 8 }}>
+        <h3 className="card-title" style={{ fontSize: 13.5 }}>{title}</h3>
+        <div style={{ display: 'flex', gap: 12, fontSize: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           {series.map((s) => (
             <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 9, height: 9, backgroundColor: s.color, borderRadius: 2 }}></span>
+              <span style={{ width: 10, height: 10, backgroundColor: s.color, borderRadius: 2, flexShrink: 0 }}></span>
               <span style={{ color: '#475569', fontWeight: 500 }}>{s.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="card-body" style={{ padding: '6px 10px', position: 'relative' }}>
+      <div className="card-body" style={{ padding: '8px 12px', position: 'relative' }}>
         {loading && (
           <div style={{
             position: 'absolute',
@@ -141,25 +141,25 @@ function ProfessionalBarChart({
             justifyContent: 'center',
             zIndex: 10,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#2563eb', fontWeight: 600 }}>
-              <RefreshCw size={13} className="animate-spin" />
-              <span>Đang tải...</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#2563eb', fontWeight: 600 }}>
+              <RefreshCw size={14} className="animate-spin" />
+              <span>Đang tải biểu đồ...</span>
             </div>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{ textAlign: 'center', padding: '35px 15px', color: '#dc2626' }}>
-            <AlertTriangle size={20} style={{ margin: '0 auto 6px' }} />
-            <div style={{ fontSize: 12, fontWeight: 600 }}>Không thể tải biểu đồ.</div>
-            <button onClick={onRetry} className="btn btn-secondary btn-sm" style={{ marginTop: 6, fontSize: 11 }}>
+          <div style={{ textAlign: 'center', padding: '40px 15px', color: '#dc2626' }}>
+            <AlertTriangle size={22} style={{ margin: '0 auto 6px' }} />
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Không thể tải biểu đồ.</div>
+            <button onClick={onRetry} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
               Thử lại
             </button>
           </div>
         )}
 
         {!error && !loading && (!data || data.length === 0) && (
-          <div style={{ textAlign: 'center', padding: '40px 15px', color: '#94a3b8', fontSize: 12 }}>
+          <div style={{ textAlign: 'center', padding: '50px 15px', color: '#94a3b8', fontSize: 12.5 }}>
             Chưa có dữ liệu trong khoảng thời gian đã chọn.
           </div>
         )}
@@ -187,9 +187,9 @@ function ProfessionalBarChart({
                     />
                     <text
                       x={padding.left - 6}
-                      y={y + 3}
+                      y={y + 3.5}
                       textAnchor="end"
-                      fontSize={9.5}
+                      fontSize={10}
                       fill="#64748b"
                       fontFamily="sans-serif"
                     >
@@ -253,7 +253,7 @@ function ProfessionalBarChart({
                         x={centerX}
                         y={svgHeight - 6}
                         textAnchor="middle"
-                        fontSize={9.5}
+                        fontSize={10}
                         fill="#64748b"
                         fontFamily="sans-serif"
                       >
@@ -276,20 +276,20 @@ function ProfessionalBarChart({
               })}
             </svg>
 
-            {/* Tooltip */}
+            {/* Responsive Tooltip */}
             {hoverIndex !== null && data[hoverIndex] && (
               <div
                 style={{
                   position: 'absolute',
-                  top: 6,
-                  left: `${((padding.left + hoverIndex * slotWidth + slotWidth / 2) / svgWidth) * 100}%`,
-                  transform: hoverIndex > data.length * 0.65 ? 'translateX(-100%)' : 'translateX(0%)',
+                  top: 8,
+                  left: `${Math.min(80, Math.max(20, ((padding.left + hoverIndex * slotWidth + slotWidth / 2) / svgWidth) * 100))}%`,
+                  transform: hoverIndex > data.length * 0.6 ? 'translateX(-90%)' : 'translateX(-10%)',
                   backgroundColor: '#0f172a',
                   color: '#ffffff',
                   padding: '6px 10px',
-                  borderRadius: 5,
+                  borderRadius: 6,
                   fontSize: 11.5,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                   pointerEvents: 'none',
                   zIndex: 20,
                   minWidth: 130,
@@ -345,7 +345,7 @@ function CompactLineChart({
   loading,
   error,
   onRetry,
-  height = 170,
+  height = 200,
 }: CompactLineChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -364,7 +364,7 @@ function CompactLineChart({
     return { maxY: safeMax, minY: Math.min(0, min) };
   }, [data, series]);
 
-  const padding = { top: 14, right: 14, bottom: 26, left: 45 };
+  const padding = { top: 16, right: 14, bottom: 28, left: 45 };
   const svgWidth = 600;
   const svgHeight = height;
   const chartWidth = svgWidth - padding.left - padding.right;
@@ -391,20 +391,20 @@ function CompactLineChart({
   }, [maxY, minY]);
 
   return (
-    <div className="card" style={{ marginBottom: 0, position: 'relative', overflow: 'hidden' }}>
-      <div className="card-header" style={{ padding: '8px 12px', flexWrap: 'wrap', gap: 6 }}>
-        <h3 className="card-title" style={{ fontSize: 13 }}>{title}</h3>
-        <div style={{ display: 'flex', gap: 10, fontSize: 11.5, alignItems: 'center' }}>
+    <div className="card" style={{ marginBottom: 0, position: 'relative' }}>
+      <div className="card-header" style={{ padding: '10px 14px', flexWrap: 'wrap', gap: 8 }}>
+        <h3 className="card-title" style={{ fontSize: 13.5 }}>{title}</h3>
+        <div style={{ display: 'flex', gap: 12, fontSize: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           {series.map((s) => (
             <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 10, height: 2.5, backgroundColor: s.color, borderRadius: 2 }}></span>
+              <span style={{ width: 10, height: 3, backgroundColor: s.color, borderRadius: 2, flexShrink: 0 }}></span>
               <span style={{ color: '#475569', fontWeight: 500 }}>{s.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="card-body" style={{ padding: '6px 10px', position: 'relative' }}>
+      <div className="card-body" style={{ padding: '8px 12px', position: 'relative' }}>
         {loading && (
           <div style={{
             position: 'absolute',
@@ -415,25 +415,25 @@ function CompactLineChart({
             justifyContent: 'center',
             zIndex: 10,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#2563eb', fontWeight: 600 }}>
-              <RefreshCw size={13} className="animate-spin" />
-              <span>Đang tải...</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#2563eb', fontWeight: 600 }}>
+              <RefreshCw size={14} className="animate-spin" />
+              <span>Đang tải biểu đồ...</span>
             </div>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{ textAlign: 'center', padding: '35px 15px', color: '#dc2626' }}>
-            <AlertTriangle size={20} style={{ margin: '0 auto 6px' }} />
-            <div style={{ fontSize: 12, fontWeight: 600 }}>Không thể tải biểu đồ.</div>
-            <button onClick={onRetry} className="btn btn-secondary btn-sm" style={{ marginTop: 6, fontSize: 11 }}>
+          <div style={{ textAlign: 'center', padding: '40px 15px', color: '#dc2626' }}>
+            <AlertTriangle size={22} style={{ margin: '0 auto 6px' }} />
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Không thể tải biểu đồ.</div>
+            <button onClick={onRetry} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
               Thử lại
             </button>
           </div>
         )}
 
         {!error && !loading && (!data || data.length === 0) && (
-          <div style={{ textAlign: 'center', padding: '40px 15px', color: '#94a3b8', fontSize: 12 }}>
+          <div style={{ textAlign: 'center', padding: '50px 15px', color: '#94a3b8', fontSize: 12.5 }}>
             Chưa có dữ liệu trong khoảng thời gian đã chọn.
           </div>
         )}
@@ -461,9 +461,9 @@ function CompactLineChart({
                     />
                     <text
                       x={padding.left - 5}
-                      y={y + 3}
+                      y={y + 3.5}
                       textAnchor="end"
-                      fontSize={9.5}
+                      fontSize={10}
                       fill="#64748b"
                       fontFamily="sans-serif"
                     >
@@ -487,7 +487,7 @@ function CompactLineChart({
                     x={getX(idx)}
                     y={svgHeight - 6}
                     textAnchor="middle"
-                    fontSize={9.5}
+                    fontSize={10}
                     fill="#64748b"
                     fontFamily="sans-serif"
                   >
@@ -504,7 +504,7 @@ function CompactLineChart({
                     <polyline
                       fill="none"
                       stroke={s.color}
-                      strokeWidth={2}
+                      strokeWidth={2.2}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       points={points}
@@ -514,7 +514,7 @@ function CompactLineChart({
                         key={idx}
                         cx={getX(idx)}
                         cy={getY(Number(d[s.key]) || 0)}
-                        r={hoverIndex === idx ? 4 : 2}
+                        r={hoverIndex === idx ? 4.5 : 2}
                         fill="#ffffff"
                         stroke={s.color}
                         strokeWidth={1.8}
@@ -557,20 +557,20 @@ function CompactLineChart({
               })}
             </svg>
 
-            {/* Tooltip */}
+            {/* Responsive Tooltip */}
             {hoverIndex !== null && data[hoverIndex] && (
               <div
                 style={{
                   position: 'absolute',
-                  top: 6,
-                  left: `${(getX(hoverIndex) / svgWidth) * 100}%`,
-                  transform: getX(hoverIndex) > svgWidth * 0.65 ? 'translateX(-100%)' : 'translateX(0%)',
+                  top: 8,
+                  left: `${Math.min(80, Math.max(20, (getX(hoverIndex) / svgWidth) * 100))}%`,
+                  transform: getX(hoverIndex) > svgWidth * 0.6 ? 'translateX(-90%)' : 'translateX(-10%)',
                   backgroundColor: '#0f172a',
                   color: '#ffffff',
                   padding: '6px 10px',
-                  borderRadius: 5,
+                  borderRadius: 6,
                   fontSize: 11.5,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                   pointerEvents: 'none',
                   zIndex: 20,
                   minWidth: 130,
@@ -774,7 +774,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Safe direct Excel Blob download (Requirement 3)
+  // Direct Excel Blob download
   const handleExportExcel = async () => {
     if (exportingExcel) return;
     setExportingExcel(true);
@@ -805,19 +805,19 @@ export default function DashboardPage() {
   const hasActiveCascadingFilter = Boolean(selectedCategory || selectedType || selectedProduct);
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       {/* 1. SHARED CASCADING FILTER TOOLBAR */}
       <div style={{
         backgroundColor: '#ffffff',
         borderRadius: 8,
         border: '1px solid var(--border-subtle)',
-        padding: '10px 16px',
-        marginBottom: 12,
+        padding: '12px 14px',
+        marginBottom: 14,
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
       }}>
-        {/* Row 1: Time Period Bar */}
+        {/* Row 1: Time Period Bar & Action Buttons */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -825,33 +825,37 @@ export default function DashboardPage() {
           justifyContent: 'space-between',
           gap: 8,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-            <Calendar size={15} color="#64748b" style={{ marginRight: 2 }} />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#475569', marginRight: 2 }}>Kỳ:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginRight: 4, flexShrink: 0 }}>
+              <Calendar size={15} color="#64748b" />
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#475569' }}>Kỳ:</span>
+            </div>
 
-            {[
-              { key: 'today', label: 'Hôm nay' },
-              { key: 'yesterday', label: 'Hôm qua' },
-              { key: '7days', label: '7 ngày' },
-              { key: '30days', label: '30 ngày' },
-              { key: 'this_month', label: 'Tháng này' },
-              { key: 'last_month', label: 'Tháng trước' },
-              { key: 'this_quarter', label: 'Quý này' },
-              { key: 'this_year', label: 'Năm nay' },
-              { key: 'custom', label: 'Tùy chọn' },
-            ].map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handlePeriodChange(item.key as DateFilterPeriod)}
-                className={`btn btn-sm ${period === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ padding: '3px 8px', fontSize: 12 }}
-              >
-                {item.label}
-              </button>
-            ))}
+            <div className="tabs-scroll-container" style={{ flexWrap: 'wrap' }}>
+              {[
+                { key: 'today', label: 'Hôm nay' },
+                { key: 'yesterday', label: 'Hôm qua' },
+                { key: '7days', label: '7 ngày' },
+                { key: '30days', label: '30 ngày' },
+                { key: 'this_month', label: 'Tháng này' },
+                { key: 'last_month', label: 'Tháng trước' },
+                { key: 'this_quarter', label: 'Quý này' },
+                { key: 'this_year', label: 'Năm nay' },
+                { key: 'custom', label: 'Tùy chọn' },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => handlePeriodChange(item.key as DateFilterPeriod)}
+                  className={`btn btn-sm ${period === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '4px 8px', fontSize: 12 }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <button
               onClick={() => { loadSummary(); loadChart1(); loadChart2(); loadTable(); }}
               className="btn btn-secondary btn-sm"
@@ -878,32 +882,37 @@ export default function DashboardPage() {
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 8,
+            flexWrap: 'wrap',
             backgroundColor: '#eff6ff',
-            padding: '6px 12px',
+            padding: '8px 12px',
             borderRadius: 6,
             border: '1px solid #bfdbfe',
           }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1e3a8a' }}>Từ ngày:</span>
-            <input
-              type="date"
-              className="form-input"
-              style={{ width: 145, padding: '2px 6px', height: 28, fontSize: 12 }}
-              value={customStart}
-              onChange={(e) => setCustomStart(e.target.value)}
-            />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1e3a8a' }}>Đến ngày:</span>
-            <input
-              type="date"
-              className="form-input"
-              style={{ width: 145, padding: '2px 6px', height: 28, fontSize: 12 }}
-              value={customEnd}
-              onChange={(e) => setCustomEnd(e.target.value)}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#1e3a8a' }}>Từ:</span>
+              <input
+                type="date"
+                className="form-input"
+                style={{ width: 135, height: 32, padding: '2px 6px', fontSize: 12 }}
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#1e3a8a' }}>Đến:</span>
+              <input
+                type="date"
+                className="form-input"
+                style={{ width: 135, height: 32, padding: '2px 6px', fontSize: 12 }}
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+              />
+            </div>
             <button
               onClick={() => { loadSummary(); loadChart1(); loadChart2(); loadTable(); }}
               className="btn btn-primary btn-sm"
-              style={{ padding: '2px 10px', fontSize: 12 }}
+              style={{ padding: '4px 12px' }}
               disabled={!customStart || !customEnd}
             >
               Áp dụng
@@ -911,23 +920,18 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Row 2: Cascading Filters Bar */}
+        {/* Row 2: Cascading Filters Bar (Responsive Stack/Grid) */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 8,
-          flexWrap: 'wrap',
           paddingTop: 8,
           borderTop: '1px solid var(--border-subtle)',
+          alignItems: 'center',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 600, color: '#475569' }}>
-            <Filter size={14} color="#2563eb" />
-            <span>Lọc:</span>
-          </div>
-
           <select
             className="form-select"
-            style={{ height: 30, fontSize: 12, width: 160 }}
+            style={{ height: 34, fontSize: 12.5 }}
             value={selectedCategory}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
@@ -935,7 +939,7 @@ export default function DashboardPage() {
               setSelectedProduct('');
             }}
           >
-            <option value="">[Tất cả Danh mục]</option>
+            <option value="">-- Tất cả Danh mục --</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -943,14 +947,14 @@ export default function DashboardPage() {
 
           <select
             className="form-select"
-            style={{ height: 30, fontSize: 12, width: 165 }}
+            style={{ height: 34, fontSize: 12.5 }}
             value={selectedType}
             onChange={(e) => {
               setSelectedType(e.target.value);
               setSelectedProduct('');
             }}
           >
-            <option value="">[Tất cả Loại SP]</option>
+            <option value="">-- Tất cả Loại SP --</option>
             {productTypes
               .filter((pt) => !selectedCategory || String(pt.category_id) === String(selectedCategory))
               .map((pt) => (
@@ -960,11 +964,11 @@ export default function DashboardPage() {
 
           <select
             className="form-select"
-            style={{ height: 30, fontSize: 12, width: 210 }}
+            style={{ height: 34, fontSize: 12.5 }}
             value={selectedProduct}
             onChange={(e) => setSelectedProduct(e.target.value)}
           >
-            <option value="">[Tất cả Sản phẩm]</option>
+            <option value="">-- Tất cả Sản phẩm --</option>
             {availableProducts.map((p) => (
               <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
             ))}
@@ -974,60 +978,60 @@ export default function DashboardPage() {
             <button
               onClick={handleResetFilters}
               className="btn btn-secondary btn-sm"
-              style={{ fontSize: 11.5, padding: '2px 8px', height: 30 }}
+              style={{ height: 34, fontSize: 12 }}
               title="Đặt lại bộ lọc về mặc định"
             >
-              <RotateCcw size={12} />
-              <span>Xóa lọc</span>
+              <RotateCcw size={13} />
+              <span>Xóa bộ lọc</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. KPI Summary Cards Grid */}
-      <div className="stats-grid" style={{ marginBottom: 12 }}>
-        <div className="stat-card" style={{ borderLeft: '4px solid #2563eb', padding: '10px 14px' }}>
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
-            <span>DOANH THU ({summary?.periodLabel || 'Kỳ này'})</span>
+      {/* 2. KPI SUMMARY CARDS GRID (RESPONSIVE 2-COLUMN ON MOBILE) */}
+      <div className="stats-grid" style={{ marginBottom: 14 }}>
+        <div className="stat-card" style={{ borderLeft: '4px solid #2563eb' }}>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>DOANH THU ({summary?.periodLabel || 'KỲ'})</span>
             <DollarSign size={15} color="#2563eb" />
           </div>
-          <div className="stat-value" style={{ color: '#1d4ed8', fontSize: 18 }}>{formatVND(summary?.revenue || 0)}</div>
-          <div className="stat-sub" style={{ fontSize: 11 }}>{summary?.salesCount || 0} lượt bán thành công</div>
+          <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatVND(summary?.revenue || 0)}</div>
+          <div className="stat-sub">{summary?.salesCount || 0} đơn thành công</div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: '4px solid #16a34a', padding: '10px 14px' }}>
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+        <div className="stat-card" style={{ borderLeft: '4px solid #16a34a' }}>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>LỢI NHUẬN GỘP</span>
             <TrendingUp size={15} color="#16a34a" />
           </div>
-          <div className="stat-value" style={{ color: '#15803d', fontSize: 18 }}>{formatVND(summary?.profit || 0)}</div>
-          <div className="stat-sub" style={{ fontSize: 11 }}>
+          <div className="stat-value" style={{ color: '#15803d' }}>{formatVND(summary?.profit || 0)}</div>
+          <div className="stat-sub">
             Tỷ suất: {summary?.revenue > 0 ? ((summary.profit / summary.revenue) * 100).toFixed(1) : 0}%
           </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: '4px solid #7c3aed', padding: '10px 14px' }}>
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
-            <span>SỐ LƯỢNG ĐÃ BÁN</span>
+        <div className="stat-card" style={{ borderLeft: '4px solid #7c3aed' }}>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>ĐÃ BÁN RA</span>
             <ShoppingBag size={15} color="#7c3aed" />
           </div>
-          <div className="stat-value" style={{ color: '#6d28d9', fontSize: 18 }}>
-            {(summary?.soldQuantity || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13, fontWeight: 500 }}>sản phẩm</span>
+          <div className="stat-value" style={{ color: '#6d28d9' }}>
+            {(summary?.soldQuantity || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13, fontWeight: 500 }}>SP</span>
           </div>
-          <div className="stat-sub" style={{ fontSize: 11 }}>Trong kỳ báo cáo</div>
+          <div className="stat-sub">Trong kỳ báo cáo</div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: '4px solid #ea580c', padding: '10px 14px' }}>
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
-            <span>TỒN KHO HIỆN TẠI</span>
+        <div className="stat-card" style={{ borderLeft: '4px solid #ea580c' }}>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>TỒN KHO</span>
             <Boxes size={15} color="#ea580c" />
           </div>
-          <div className="stat-value" style={{ color: '#c2410c', fontSize: 18 }}>
+          <div className="stat-value" style={{ color: '#c2410c' }}>
             {(summary?.currentTotalStock || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13, fontWeight: 500 }}>món</span>
           </div>
-          <div className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+          <div className="stat-sub">
             {summary?.lowStockCount > 0 ? (
-              <span style={{ color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <span style={{ color: '#dc2626', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                 <AlertTriangle size={11} /> {summary.lowStockCount} loại sắp hết
               </span>
             ) : (
@@ -1036,24 +1040,24 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: '4px solid #0891b2', padding: '10px 14px' }}>
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
-            <span>GIÁ TRỊ TỒN KHO</span>
+        <div className="stat-card" style={{ borderLeft: '4px solid #0891b2' }}>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>GIÁ TRỊ TỒN</span>
             <Boxes size={15} color="#0891b2" />
           </div>
-          <div className="stat-value" style={{ color: '#0e7490', fontSize: 18 }}>{formatVND(summary?.stockValuation || 0)}</div>
-          <div className="stat-sub" style={{ fontSize: 11 }}>Theo giá vốn FIFO các lô tồn</div>
+          <div className="stat-value" style={{ color: '#0e7490' }}>{formatVND(summary?.stockValuation || 0)}</div>
+          <div className="stat-sub">Theo giá vốn FIFO</div>
         </div>
       </div>
 
-      {/* 3. COMPACT 2-CHART SECTION (REQUIREMENTS 1 & 2) */}
+      {/* 3. CHARTS SECTION (VERTICALLY STACKED ON MOBILE, SIDE-BY-SIDE ON DESKTOP) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        gap: 12,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
+        gap: 14,
         marginBottom: 16,
       }}>
-        {/* CHART 1: DOANH THU & LỢI NHUẬN (BAR CHART — DUAL BARS) */}
+        {/* CHART 1: DOANH THU & LỢI NHUẬN */}
         <ProfessionalBarChart
           title="Doanh thu & Lợi nhuận"
           data={chart1Data}
@@ -1064,10 +1068,10 @@ export default function DashboardPage() {
           loading={loadingChart1}
           error={errorChart1}
           onRetry={loadChart1}
-          height={170}
+          height={200}
         />
 
-        {/* CHART 2: TỒN KHO & BIẾN ĐỘNG HÀNG HÓA (COMPACT LINE CHART) */}
+        {/* CHART 2: TỒN KHO & BIẾN ĐỘNG HÀNG HÓA */}
         <CompactLineChart
           title="Tồn kho & Biến động hàng hóa"
           data={chart2Data}
@@ -1079,30 +1083,30 @@ export default function DashboardPage() {
           loading={loadingChart2}
           error={errorChart2}
           onRetry={loadChart2}
-          height={170}
+          height={200}
         />
       </div>
 
-      {/* 4. MASTER AGGREGATE TABLE CONTAINER */}
+      {/* 4. MASTER AGGREGATE TABLE CONTAINER (ISOLATED HORIZONTAL SCROLL) */}
       <div className="card">
-        <div className="card-header" style={{ flexWrap: 'wrap', gap: 10, padding: '10px 14px' }}>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: 8, padding: '10px 14px' }}>
           <div>
             <h2 className="card-title" style={{ fontSize: 14 }}>BẢNG THỐNG KÊ TỔNG THỂ KINH DOANH & TỒN KHO</h2>
             <p style={{ fontSize: 11.5, color: '#64748b', marginTop: 1 }}>
-              Dữ liệu thực tế đồng bộ theo bộ lọc kỳ ({summary?.periodLabel || 'Kỳ này'})
+              Dữ liệu đồng bộ theo kỳ ({summary?.periodLabel || 'Kỳ này'})
             </p>
           </div>
 
-          <div style={{ position: 'relative', minWidth: 200 }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 240 }}>
             <input
               type="text"
               className="form-input"
-              style={{ paddingLeft: 28, paddingRight: 8, height: 30, fontSize: 12 }}
+              style={{ paddingLeft: 28, paddingRight: 8, height: 32, fontSize: 12 }}
               placeholder="Tìm theo tên, SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 8, top: 8 }} />
+            <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 8, top: 9 }} />
           </div>
         </div>
 
@@ -1110,8 +1114,8 @@ export default function DashboardPage() {
           <table className="data-table" style={{ fontSize: 12.5 }}>
             <thead>
               <tr>
-                <th style={{ width: 130 }}>Loại sản phẩm</th>
-                <th style={{ minWidth: 200 }}>Sản phẩm</th>
+                <th style={{ width: 120 }}>Loại sản phẩm</th>
+                <th style={{ minWidth: 180 }}>Sản phẩm</th>
                 <th 
                   className="text-right" 
                   style={{ cursor: 'pointer', width: 85 }}
@@ -1156,13 +1160,13 @@ export default function DashboardPage() {
                     <ArrowUpDown size={11} />
                   </div>
                 </th>
-                <th className="text-right" style={{ width: 110 }} title="Giá vốn bình quân gia quyền của các lô hàng còn tồn theo FIFO">
-                  Giá vốn BQ tồn
+                <th className="text-right" style={{ width: 105 }} title="Giá vốn bình quân gia quyền của các lô hàng còn tồn theo FIFO">
+                  Giá vốn BQ
                 </th>
-                <th className="text-right" style={{ width: 100 }}>Giá bán</th>
+                <th className="text-right" style={{ width: 95 }}>Giá bán</th>
                 <th 
                   className="text-right" 
-                  style={{ cursor: 'pointer', width: 120 }}
+                  style={{ cursor: 'pointer', width: 110 }}
                   onClick={() => handleSort('stock_value')}
                   title="Giá trị tồn kho = SUM(SL còn lại x Giá nhập của từng lô)"
                 >
@@ -1173,7 +1177,7 @@ export default function DashboardPage() {
                 </th>
                 <th 
                   className="text-right" 
-                  style={{ cursor: 'pointer', width: 120 }}
+                  style={{ cursor: 'pointer', width: 110 }}
                   onClick={() => handleSort('revenue')}
                   title="Doanh thu tính theo giá snapshot tại thời điểm bán"
                 >
@@ -1184,7 +1188,7 @@ export default function DashboardPage() {
                 </th>
                 <th 
                   className="text-right" 
-                  style={{ cursor: 'pointer', width: 110 }}
+                  style={{ cursor: 'pointer', width: 105 }}
                   onClick={() => handleSort('profit')}
                   title="Lợi nhuận = Doanh thu - Giá vốn hàng bán"
                 >

@@ -10,12 +10,13 @@ import {
   Filter, 
   Layers, 
   X, 
-  CheckCircle2,
-  AlertCircle,
-  PackageCheck,
-  Tag
+  CheckCircle2, 
+  AlertCircle, 
+  PackageCheck, 
+  Tag 
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import Link from 'next/link';
 
 export default function InventoryOverviewPage() {
   const { user } = useAuth();
@@ -121,34 +122,23 @@ export default function InventoryOverviewPage() {
   const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       {/* Top action bar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 16,
+        gap: 10,
+        marginBottom: 14,
       }}>
-        <div style={{ display: 'flex', gap: 4, backgroundColor: '#f1f5f9', padding: 4, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+        {/* Scrollable Tabs */}
+        <div className="tabs-scroll-container" style={{ backgroundColor: '#f1f5f9', padding: 4, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
           <button
             type="button"
             onClick={() => setActiveTab('status')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'status' ? '#0f172a' : 'transparent',
-              color: activeTab === 'status' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <Boxes size={14} />
             <span>Tồn kho hiện tại</span>
@@ -157,53 +147,29 @@ export default function InventoryOverviewPage() {
           <button
             type="button"
             onClick={() => setActiveTab('lots')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'lots' ? '#0f172a' : 'transparent',
-              color: activeTab === 'lots' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'lots' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <PackageCheck size={14} />
-            <span>Quản lý Lô hàng (FIFO Lots)</span>
+            <span>Lô hàng (FIFO Lots)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('movements')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'movements' ? '#0f172a' : 'transparent',
-              color: activeTab === 'movements' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'movements' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <FileText size={14} />
             <span>Sổ cái thẻ kho</span>
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <a href="/inventory/import" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <PlusCircle size={15} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <Link href="/inventory/import" className="btn btn-primary btn-sm">
+            <PlusCircle size={14} />
             <span>Nhập kho</span>
-          </a>
+          </Link>
 
           {user?.role === 'ADMIN' && (
             <button
@@ -215,8 +181,8 @@ export default function InventoryOverviewPage() {
               }}
               className="btn btn-secondary btn-sm"
             >
-              <FileText size={15} />
-              <span>Xuất huỷ / Điều chỉnh kho</span>
+              <FileText size={14} />
+              <span>Xuất huỷ / Điều chỉnh</span>
             </button>
           )}
         </div>
@@ -232,7 +198,8 @@ export default function InventoryOverviewPage() {
           border: `1px solid ${feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
           borderRadius: 6,
           color: feedback.type === 'success' ? '#15803d' : '#dc2626',
-          marginBottom: 16,
+          marginBottom: 14,
+          fontSize: 13,
         }}>
           {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span>{feedback.message}</span>
@@ -242,14 +209,14 @@ export default function InventoryOverviewPage() {
       {/* 1. TAB: TỒN KHO HIỆN TẠI */}
       {activeTab === 'status' && (
         <>
-          {/* Inventory summary cards */}
-          <div className="stats-grid" style={{ marginBottom: 16 }}>
+          {/* Inventory summary cards (Responsive 2-Col) */}
+          <div className="stats-grid" style={{ marginBottom: 14 }}>
             <div className="stat-card" style={{ borderLeft: '4px solid #2563eb' }}>
               <div className="stat-label">TỔNG SỐ LƯỢNG TỒN</div>
               <div className="stat-value" style={{ color: '#1d4ed8' }}>
                 {(inventoryData?.summary?.totalStock ?? inventoryData?.summary?.totalStockItems ?? 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13 }}>món</span>
               </div>
-              <div className="stat-sub">{inventoryData?.summary?.totalProducts || 0} sản phẩm đang kinh doanh</div>
+              <div className="stat-sub">{inventoryData?.summary?.totalProducts || 0} sản phẩm</div>
             </div>
 
             <div className="stat-card" style={{ borderLeft: '4px solid #059669' }}>
@@ -257,7 +224,7 @@ export default function InventoryOverviewPage() {
               <div className="stat-value" style={{ color: '#047857' }}>
                 {formatVND(inventoryData?.summary?.totalValuation || 0)}
               </div>
-              <div className="stat-sub">Tính theo giá vốn FIFO các lô còn hàng</div>
+              <div className="stat-sub">Tính theo giá vốn FIFO</div>
             </div>
 
             <div className="stat-card" style={{ borderLeft: '4px solid #dc2626' }}>
@@ -270,54 +237,57 @@ export default function InventoryOverviewPage() {
           </div>
 
           <div className="card">
-            <div className="card-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ position: 'relative', minWidth: 240 }}>
+            <div className="card-header" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 8,
+              padding: '10px 14px',
+            }}>
+              <div style={{ position: 'relative', width: '100%' }}>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ paddingLeft: 30, height: 32, fontSize: 12.5 }}
+                  style={{ paddingLeft: 28, height: 34, fontSize: 12.5 }}
                   placeholder="Tìm theo tên, SKU..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 9, top: 9 }} />
+                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 8, top: 10 }} />
               </div>
 
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <select
-                  className="form-select"
-                  style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 160 }}
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">-- Tất cả danh mục --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+              <select
+                className="form-select"
+                style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="">-- Tất cả danh mục --</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={lowStockOnly}
-                    onChange={(e) => setLowStockOnly(e.target.checked)}
-                  />
-                  <span style={{ color: '#dc2626', fontWeight: 600 }}>Chỉ xem hàng sắp hết</span>
-                </label>
-              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={lowStockOnly}
+                  onChange={(e) => setLowStockOnly(e.target.checked)}
+                />
+                <span style={{ color: '#dc2626', fontWeight: 600 }}>Chỉ xem hàng sắp hết</span>
+              </label>
             </div>
 
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 110 }}>Mã SKU</th>
+                    <th style={{ width: 100 }}>Mã SKU</th>
                     <th>Sản phẩm</th>
                     <th>Danh mục</th>
                     <th className="text-right">Tồn hiện tại</th>
-                    <th className="text-right">Giá vốn BQ tồn</th>
+                    <th className="text-right">Giá vốn BQ</th>
                     <th className="text-right">Giá bán</th>
-                    <th className="text-right">Giá trị tồn kho</th>
+                    <th className="text-right">Giá trị tồn</th>
                     <th className="text-center">Cảnh báo</th>
                   </tr>
                 </thead>
@@ -363,7 +333,7 @@ export default function InventoryOverviewPage() {
                         <td className="text-center">
                           {item.current_stock <= item.min_stock_alert ? (
                             <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <AlertTriangle size={11} /> Cần nhập thêm
+                              <AlertTriangle size={11} /> Cần nhập
                             </span>
                           ) : (
                             <span className="badge badge-success">An toàn</span>
@@ -382,13 +352,13 @@ export default function InventoryOverviewPage() {
       {/* 2. TAB: QUẢN LÝ LÔ HÀNG (FIFO INVENTORY LOTS) */}
       {activeTab === 'lots' && (
         <>
-          <div className="stats-grid" style={{ marginBottom: 16 }}>
+          <div className="stats-grid" style={{ marginBottom: 14 }}>
             <div className="stat-card" style={{ borderLeft: '4px solid #2563eb' }}>
               <div className="stat-label">TỔNG SL NHẬP VÀO</div>
               <div className="stat-value" style={{ color: '#1d4ed8' }}>
                 {(lotsData?.summary?.totalReceived || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13 }}>món</span>
               </div>
-              <div className="stat-sub">{lotsData?.summary?.lotCount || 0} lô hàng trong hệ thống</div>
+              <div className="stat-sub">{lotsData?.summary?.lotCount || 0} lô hàng</div>
             </div>
 
             <div className="stat-card" style={{ borderLeft: '4px solid #16a34a' }}>
@@ -396,67 +366,70 @@ export default function InventoryOverviewPage() {
               <div className="stat-value" style={{ color: '#15803d' }}>
                 {(lotsData?.summary?.totalRemaining || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13 }}>món</span>
               </div>
-              <div className="stat-sub">Sẵn sàng xuất bán FIFO</div>
+              <div className="stat-sub">Sẵn sàng xuất FIFO</div>
             </div>
 
             <div className="stat-card" style={{ borderLeft: '4px solid #0891b2' }}>
-              <div className="stat-label">GIÁ TRỊ TỒN TRONG CÁC LÔ</div>
+              <div className="stat-label">GIÁ TRỊ TỒN CÁC LÔ</div>
               <div className="stat-value" style={{ color: '#0e7490' }}>
                 {formatVND(lotsData?.summary?.totalRemainingValue || 0)}
               </div>
-              <div className="stat-sub">Theo đơn giá từng lô nhập</div>
+              <div className="stat-sub">Theo giá từng lô</div>
             </div>
           </div>
 
           <div className="card">
-            <div className="card-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ position: 'relative', minWidth: 240 }}>
+            <div className="card-header" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 8,
+              padding: '10px 14px',
+            }}>
+              <div style={{ position: 'relative', width: '100%' }}>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ paddingLeft: 30, height: 32, fontSize: 12.5 }}
-                  placeholder="Tìm theo Mã Lô, SKU, Tên SP..."
+                  style={{ paddingLeft: 28, height: 34, fontSize: 12.5 }}
+                  placeholder="Tìm Mã Lô, SKU, Tên SP..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 9, top: 9 }} />
+                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 8, top: 10 }} />
               </div>
 
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <select
-                  className="form-select"
-                  style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 160 }}
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">-- Tất cả danh mục --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+              <select
+                className="form-select"
+                style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="">-- Tất cả danh mục --</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
 
-                <select
-                  className="form-select"
-                  style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 150 }}
-                  value={lotStatusFilter}
-                  onChange={(e) => setLotStatusFilter(e.target.value)}
-                >
-                  <option value="AVAILABLE">Lô còn hàng</option>
-                  <option value="EXHAUSTED">Lô đã xuất hết</option>
-                  <option value="ALL">Tất cả các lô</option>
-                </select>
-              </div>
+              <select
+                className="form-select"
+                style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+                value={lotStatusFilter}
+                onChange={(e) => setLotStatusFilter(e.target.value)}
+              >
+                <option value="AVAILABLE">Lô còn hàng</option>
+                <option value="EXHAUSTED">Lô đã xuất hết</option>
+                <option value="ALL">Tất cả các lô</option>
+              </select>
             </div>
 
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 130 }}>Mã Lô hàng</th>
+                    <th style={{ width: 120 }}>Mã Lô</th>
                     <th>Sản phẩm</th>
                     <th>Ngày nhập</th>
                     <th className="text-right">SL Nhập</th>
-                    <th className="text-right">SL Còn lại</th>
+                    <th className="text-right">SL Còn</th>
                     <th className="text-right">Đơn giá nhập</th>
                     <th className="text-right">Giá trị còn lại</th>
                     <th>Nhà cung cấp</th>
@@ -506,7 +479,7 @@ export default function InventoryOverviewPage() {
                         <td style={{ fontSize: 12 }}>{lot.supplier_name || '-'}</td>
                         <td className="text-center">
                           <span className={`badge ${lot.status === 'AVAILABLE' ? 'badge-success' : 'badge-neutral'}`}>
-                            {lot.status === 'AVAILABLE' ? 'Còn hàng' : 'Đã xuất hết'}
+                            {lot.status === 'AVAILABLE' ? 'Còn hàng' : 'Đã hết'}
                           </span>
                         </td>
                         <td style={{ fontSize: 12, color: '#64748b' }}>{lot.note || '-'}</td>
@@ -523,12 +496,12 @@ export default function InventoryOverviewPage() {
       {/* 3. TAB: SỔ CÁI THẺ KHO */}
       {activeTab === 'movements' && (
         <div className="card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-            <h2 className="card-title" style={{ fontSize: 15 }}>Nhật ký mọi biến động kho</h2>
+          <div className="card-header" style={{ flexWrap: 'wrap', gap: 8, padding: '10px 14px' }}>
+            <h2 className="card-title" style={{ fontSize: 14.5 }}>Nhật ký biến động kho</h2>
 
             <select
               className="form-select"
-              style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 170 }}
+              style={{ height: 34, padding: '2px 8px', fontSize: 12.5, width: '100%', maxWidth: 220 }}
               value={movementTypeFilter}
               onChange={(e) => setMovementTypeFilter(e.target.value)}
             >
@@ -633,7 +606,7 @@ export default function InventoryOverviewPage() {
                   </select>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
                   <div className="form-group">
                     <label className="form-label">Loại điều chỉnh (*)</label>
                     <select
@@ -642,11 +615,11 @@ export default function InventoryOverviewPage() {
                       onChange={(e) => setAdjustType(e.target.value)}
                       required
                     >
-                      <option value="DAMAGE">Hỏng hóc / Lỗi (DAMAGE)</option>
-                      <option value="LOSS">Thất thoát / Mất (LOSS)</option>
-                      <option value="GIFT">Hàng biếu tặng (GIFT)</option>
-                      <option value="RETURN">Trả hàng NCC (RETURN)</option>
-                      <option value="ADJUSTMENT">Kiểm kê sai lệch (ADJUSTMENT)</option>
+                      <option value="DAMAGE">Hỏng / Lỗi (DAMAGE)</option>
+                      <option value="LOSS">Thất thoát (LOSS)</option>
+                      <option value="GIFT">Biếu tặng (GIFT)</option>
+                      <option value="RETURN">Trả NCC (RETURN)</option>
+                      <option value="ADJUSTMENT">Kiểm kê (ADJUSTMENT)</option>
                     </select>
                   </div>
 
@@ -679,7 +652,7 @@ export default function InventoryOverviewPage() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Ví dụ: Rách bao bì, kiểm kê thực tế thiếu 1 cái..."
+                    placeholder="Ví dụ: Rách bao bì, kiểm kê thiếu..."
                     value={adjustNote}
                     onChange={(e) => setAdjustNote(e.target.value)}
                     required

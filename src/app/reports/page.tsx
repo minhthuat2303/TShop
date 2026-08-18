@@ -7,8 +7,8 @@ import {
   DollarSign, 
   Calendar, 
   ShoppingBag, 
-  Boxes,
-  ArrowUpRight
+  Boxes, 
+  ArrowUpRight 
 } from 'lucide-react';
 import { DateFilterPeriod } from '@/lib/date-utils';
 
@@ -32,8 +32,8 @@ export default function ReportsPage() {
 
       if (byDateJson.success) setSalesByDate(byDateJson.data);
       if (topJson.success) {
-        setTopSelling(topJson.data.topSelling);
-        setSlowMoving(topJson.data.slowMoving);
+        setTopSelling(topJson.data.topSelling || []);
+        setSlowMoving(topJson.data.slowMoving || []);
       }
     } catch (e) {
       console.error(e);
@@ -49,28 +49,29 @@ export default function ReportsPage() {
   const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
 
   return (
-    <div>
-      {/* Period selector */}
+    <div style={{ width: '100%' }}>
+      {/* Period selector (Scrollable / Responsive) */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 12,
         backgroundColor: '#ffffff',
-        padding: '12px 18px',
+        padding: '10px 14px',
         borderRadius: 8,
         border: '1px solid var(--border-subtle)',
-        marginBottom: 20,
+        marginBottom: 14,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Calendar size={16} color="#64748b" style={{ marginRight: 4 }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginRight: 6 }}>Khoảng thời gian:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <Calendar size={15} color="#64748b" />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#475569' }}>Kỳ:</span>
+        </div>
 
+        <div className="tabs-scroll-container" style={{ flexWrap: 'wrap' }}>
           {[
             { key: 'today', label: 'Hôm nay' },
-            { key: '7days', label: '7 ngày qua' },
-            { key: '30days', label: '30 ngày qua' },
+            { key: '7days', label: '7 ngày' },
+            { key: '30days', label: '30 ngày' },
             { key: 'this_month', label: 'Tháng này' },
             { key: 'last_month', label: 'Tháng trước' },
             { key: 'this_year', label: 'Năm nay' },
@@ -79,7 +80,7 @@ export default function ReportsPage() {
               key={item.key}
               onClick={() => setPeriod(item.key as DateFilterPeriod)}
               className={`btn btn-sm ${period === item.key ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '4px 10px', fontSize: 12.5 }}
+              style={{ padding: '4px 10px', fontSize: 12 }}
             >
               {item.label}
             </button>
@@ -87,17 +88,23 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      {/* 2-Column Desktop, 1-Column Stack Mobile for Top Selling & Slow Moving */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
+        gap: 14,
+        marginBottom: 16,
+      }}>
         {/* Top selling products */}
         <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="card-header" style={{ padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <TrendingUp size={16} color="#16a34a" />
-              <h2 className="card-title" style={{ fontSize: 15 }}>Top sản phẩm bán chạy nhất</h2>
+              <h2 className="card-title" style={{ fontSize: 14 }}>Top sản phẩm bán chạy nhất</h2>
             </div>
           </div>
 
-          <div className="table-container">
+          <div className="table-container" style={{ maxHeight: 380 }}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -140,14 +147,14 @@ export default function ReportsPage() {
 
         {/* Slow moving products */}
         <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="card-header" style={{ padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Boxes size={16} color="#d97706" />
-              <h2 className="card-title" style={{ fontSize: 15 }}>Sản phẩm tồn nhiều / Bán chậm</h2>
+              <h2 className="card-title" style={{ fontSize: 14 }}>Sản phẩm tồn nhiều / Bán chậm</h2>
             </div>
           </div>
 
-          <div className="table-container">
+          <div className="table-container" style={{ maxHeight: 380 }}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -189,10 +196,10 @@ export default function ReportsPage() {
 
       {/* Daily sales breakdown ledger */}
       <div className="card">
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="card-header" style={{ padding: '10px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <BarChart3 size={16} color="#2563eb" />
-            <h2 className="card-title" style={{ fontSize: 15 }}>Bảng chi tiết doanh thu & lợi nhuận theo ngày</h2>
+            <h2 className="card-title" style={{ fontSize: 14 }}>Bảng chi tiết doanh thu & lợi nhuận theo ngày</h2>
           </div>
         </div>
 
@@ -202,7 +209,7 @@ export default function ReportsPage() {
               <tr>
                 <th>Ngày giao dịch</th>
                 <th className="text-right">Số lượt bán</th>
-                <th className="text-right">Số lượng sản phẩm</th>
+                <th className="text-right">Số lượng SP</th>
                 <th className="text-right">Tổng doanh thu</th>
                 <th className="text-right">Tổng giá vốn</th>
                 <th className="text-right">Lợi nhuận gộp</th>

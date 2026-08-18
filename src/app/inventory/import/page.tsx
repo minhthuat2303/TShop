@@ -8,12 +8,12 @@ import {
   Calendar, 
   Plus, 
   Clock, 
-  Download,
-  Upload,
-  FileSpreadsheet,
-  FileCheck,
-  RefreshCw,
-  ArrowRight
+  Download, 
+  Upload, 
+  FileSpreadsheet, 
+  FileCheck, 
+  RefreshCw, 
+  ArrowRight 
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 
@@ -33,7 +33,7 @@ export default function InventoryImportPage() {
   const [supplierId, setSupplierId] = useState('');
   const [note, setNote] = useState('');
 
-  // Bulk Excel Import fields (Requirement 4)
+  // Bulk Excel Import fields
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [excelImportDate, setExcelImportDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [previewData, setPreviewData] = useState<any | null>(null);
@@ -124,12 +124,10 @@ export default function InventoryImportPage() {
     }
   };
 
-  // REQUIREMENT 4: Export current inventory list to Excel
   const handleExportStockTemplate = () => {
     window.open('/api/inventory/export-stock-template', '_blank');
   };
 
-  // REQUIREMENT 4: Preview Bulk Import Excel
   const handlePreviewExcel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!excelFile) return;
@@ -162,7 +160,6 @@ export default function InventoryImportPage() {
     }
   };
 
-  // REQUIREMENT 4: Commit Bulk Import Excel
   const handleCommitExcel = async () => {
     if (!excelFile || committing) return;
     setCommitting(true);
@@ -198,26 +195,26 @@ export default function InventoryImportPage() {
   const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
 
   return (
-    <div style={{ maxWidth: 950, margin: '0 auto' }}>
+    <div style={{ maxWidth: 950, margin: '0 auto', width: '100%' }}>
       {/* 1. Header & Mode Switcher */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-body" style={{ padding: '14px 20px' }}>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card-body" style={{ padding: '12px 16px' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 12
+            gap: 10
           }}>
             <div>
-              <h1 className="card-title" style={{ fontSize: 18 }}>NHẬP KHO HÀNG HÓA</h1>
-              <p style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
-                Nhập hàng thủ công hoặc nhập hàng loạt nhanh chóng qua file Excel tồn kho
+              <h1 className="card-title" style={{ fontSize: 16 }}>NHẬP KHO HÀNG HÓA</h1>
+              <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                Nhập từng sản phẩm hoặc nhập hàng loạt qua file Excel
               </p>
             </div>
 
             {/* Mode Switcher */}
-            <div style={{ display: 'flex', gap: 6, backgroundColor: '#f1f5f9', padding: 3, borderRadius: 6 }}>
+            <div style={{ display: 'flex', gap: 4, backgroundColor: '#f1f5f9', padding: 3, borderRadius: 6 }}>
               <button
                 type="button"
                 onClick={() => setImportMode('single')}
@@ -231,7 +228,7 @@ export default function InventoryImportPage() {
                 className={`btn btn-sm ${importMode === 'excel' ? 'btn-primary' : 'btn-secondary'}`}
               >
                 <FileSpreadsheet size={14} />
-                <span>Nhập hàng loạt bằng Excel</span>
+                <span>Nhập bằng Excel</span>
               </button>
             </div>
           </div>
@@ -243,30 +240,31 @@ export default function InventoryImportPage() {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '12px 16px',
+          padding: '10px 14px',
           backgroundColor: feedback.type === 'success' ? '#f0fdf4' : '#fef2f2',
           border: `1px solid ${feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
           borderRadius: 6,
           color: feedback.type === 'success' ? '#15803d' : '#dc2626',
-          marginBottom: 16,
+          marginBottom: 14,
+          fontSize: 13,
         }}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span style={{ fontWeight: 600 }}>{feedback.message}</span>
         </div>
       )}
 
       {/* 2. MODE 1: SINGLE ITEM IMPORT FORM */}
       {importMode === 'single' && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div className="card-header">
-            <h2 className="card-title" style={{ fontSize: 15 }}>Nhập kho từng sản phẩm</h2>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header" style={{ padding: '10px 14px' }}>
+            <h2 className="card-title" style={{ fontSize: 14.5 }}>Nhập kho từng sản phẩm</h2>
           </div>
 
           <div className="card-body">
             <form onSubmit={handleSubmitSingle}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
                 <div className="form-group">
-                  <label className="form-label">Chọn sản phẩm nhập kho (*)</label>
+                  <label className="form-label">Chọn sản phẩm (*)</label>
                   <select
                     className="form-select"
                     value={productId}
@@ -275,7 +273,7 @@ export default function InventoryImportPage() {
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        [{p.sku}] {p.name} (Tồn hiện tại: {p.current_stock})
+                        [{p.sku}] {p.name} (Tồn: {p.current_stock})
                       </option>
                     ))}
                   </select>
@@ -293,9 +291,9 @@ export default function InventoryImportPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
                 <div className="form-group">
-                  <label className="form-label">Số lượng nhập (*)</label>
+                  <label className="form-label">Số lượng (*)</label>
                   <input
                     type="number"
                     className="form-input"
@@ -307,7 +305,7 @@ export default function InventoryImportPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Đơn giá nhập thực tế (VNĐ) (*)</label>
+                  <label className="form-label">Đơn giá nhập (VNĐ) (*)</label>
                   <input
                     type="number"
                     className="form-input"
@@ -325,7 +323,7 @@ export default function InventoryImportPage() {
                     value={supplierId}
                     onChange={(e) => setSupplierId(e.target.value)}
                   >
-                    <option value="">-- Chọn nhà cung cấp --</option>
+                    <option value="">-- Chọn NCC --</option>
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -333,12 +331,12 @@ export default function InventoryImportPage() {
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 20 }}>
+              <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Ghi chú phiếu nhập</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Ghi chú về lô hàng / số hóa đơn NCC (tuỳ chọn)"
+                  placeholder="Ghi chú về lô hàng / số hóa đơn (tuỳ chọn)"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 />
@@ -349,23 +347,25 @@ export default function InventoryImportPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 8,
                 backgroundColor: '#f8fafc',
-                padding: '14px 18px',
+                padding: '12px 14px',
                 borderRadius: 6,
                 border: '1px solid var(--border-subtle)',
-                marginBottom: 20,
+                marginBottom: 14,
               }}>
                 <div>
-                  <span style={{ fontSize: 13, color: '#64748b' }}>Tổng tiền thanh toán nhập hàng:</span>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8' }}>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>Tổng tiền thanh toán:</span>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#1d4ed8' }}>
                     {formatVND(quantity * (parseFloat(unitCostPrice) || 0))}
                   </div>
                 </div>
 
                 {selectedProdObj && (
-                  <div style={{ textAlign: 'right', fontSize: 13, color: '#475569' }}>
-                    <div>Tồn kho hiện có: <strong>{selectedProdObj.current_stock}</strong></div>
-                    <div>Tồn sau khi nhập: <strong style={{ color: '#15803d' }}>{selectedProdObj.current_stock + quantity}</strong></div>
+                  <div style={{ textAlign: 'right', fontSize: 12, color: '#475569' }}>
+                    <div>Tồn hiện có: <strong>{selectedProdObj.current_stock}</strong></div>
+                    <div>Tồn sau nhập: <strong style={{ color: '#15803d' }}>{selectedProdObj.current_stock + quantity}</strong></div>
                   </div>
                 )}
               </div>
@@ -373,10 +373,10 @@ export default function InventoryImportPage() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                style={{ width: '100%', height: 46 }}
+                style={{ width: '100%', minHeight: 44 }}
                 disabled={submitting}
               >
-                <ArrowDownToLine size={18} />
+                <ArrowDownToLine size={17} />
                 <span>{submitting ? 'Đang lưu phiếu nhập...' : 'XÁC NHẬN NHẬP KHO'}</span>
               </button>
             </form>
@@ -384,192 +384,192 @@ export default function InventoryImportPage() {
         </div>
       )}
 
-      {/* 3. MODE 2: BULK EXCEL STOCK-IN (REQUIREMENT 4) */}
+      {/* 3. MODE 2: BULK EXCEL STOCK-IN */}
       {importMode === 'excel' && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div className="card-header" style={{ backgroundColor: '#f0fdf4' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileSpreadsheet size={18} color="#16a34a" />
-                <h2 className="card-title" style={{ fontSize: 15, color: '#15803d' }}>
-                  Quy trình nhập kho hàng loạt qua file Excel tồn kho
-                </h2>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header" style={{ backgroundColor: '#f0fdf4' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FileSpreadsheet size={17} color="#16a34a" />
+              <h2 className="card-title" style={{ fontSize: 14.5, color: '#15803d' }}>
+                Quy trình nhập kho hàng loạt qua file Excel
+              </h2>
+            </div>
+          </div>
+
+          <div className="card-body">
+            {/* Step 1: Export Current Stock */}
+            <div style={{
+              padding: 12,
+              backgroundColor: '#f8fafc',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 6,
+              marginBottom: 14,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, color: '#0f172a', marginBottom: 4 }}>
+                Bước 1: Xuất file danh sách tồn kho hiện tại
               </div>
+              <p style={{ fontSize: 12.5, color: '#64748b', marginBottom: 10 }}>
+                Tải file Excel đã có sẵn danh sách sản phẩm. Điền số lượng vào cột <strong>"Số lượng nhập kho (*)"</strong>.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleExportStockTemplate}
+                className="btn btn-success btn-sm"
+              >
+                <Download size={14} />
+                <span>XUẤT FILE TỒN KHO (.XLSX)</span>
+              </button>
             </div>
 
-            <div className="card-body">
-              {/* Step 1: Export Current Stock */}
-              <div style={{
-                padding: 16,
-                backgroundColor: '#f8fafc',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 8,
-                marginBottom: 20,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 4 }}>
-                  Bước 1: Xuất file danh sách tồn kho hiện tại
-                </div>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
-                  Tải file Excel đã có sẵn toàn bộ danh sách sản phẩm, mã SKU, tên và tồn kho hiện tại. Bạn chỉ cần mở file và điền số lượng vào cột <strong>"Số lượng nhập kho (*)"</strong>.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleExportStockTemplate}
-                  className="btn btn-success"
-                >
-                  <Download size={16} />
-                  <span>XUẤT DANH SÁCH TỒN KHO HIỆN TẠI (.XLSX)</span>
-                </button>
+            {/* Step 2: Upload and Preview */}
+            <div style={{
+              padding: 12,
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 6,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, color: '#0f172a', marginBottom: 4 }}>
+                Bước 2: Tải lên file Excel sau khi điền số lượng
               </div>
 
-              {/* Step 2: Upload and Preview */}
-              <div style={{
-                padding: 16,
-                backgroundColor: '#ffffff',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 8,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 4 }}>
-                  Bước 2: Tải lên file Excel sau khi đã nhập số lượng
-                </div>
-
-                <form onSubmit={handlePreviewExcel}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 12, alignItems: 'center', marginTop: 12 }}>
-                    <div>
-                      <label className="form-label" style={{ marginBottom: 4 }}>Ngày nhập kho:</label>
-                      <input
-                        type="date"
-                        className="form-input"
-                        value={excelImportDate}
-                        onChange={(e) => setExcelImportDate(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="form-label" style={{ marginBottom: 4 }}>Chọn file Excel:</label>
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls"
-                        className="form-input"
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            setExcelFile(e.target.files[0]);
-                            setPreviewData(null);
-                          }
-                        }}
-                        required
-                      />
-                    </div>
-
-                    <div style={{ paddingTop: 20 }}>
-                      <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={!excelFile || previewing}
-                        style={{ height: 38 }}
-                      >
-                        {previewing ? 'Đang đọc...' : 'Kiểm tra file'}
-                      </button>
-                    </div>
+              <form onSubmit={handlePreviewExcel}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, alignItems: 'flex-end', marginTop: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ marginBottom: 3 }}>Ngày nhập kho:</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={excelImportDate}
+                      onChange={(e) => setExcelImportDate(e.target.value)}
+                      required
+                    />
                   </div>
-                </form>
-              </div>
 
-              {/* Preview Diff Box */}
-              {previewData && (
-                <div style={{ marginTop: 20, border: '2px solid #2563eb', borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{
-                    padding: '12px 18px',
-                    backgroundColor: '#eff6ff',
-                    borderBottom: '1px solid #bfdbfe',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#1e40af', fontSize: 15 }}>
-                        KẾT QUẢ KIỂM TRA FILE NHẬP KHO
-                      </div>
-                      <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
-                        File: <strong>{previewData.fileName}</strong> • Tìm thấy <strong>{previewData.validRows.length}</strong> sản phẩm có nhập số lượng
-                      </div>
-                    </div>
+                  <div>
+                    <label className="form-label" style={{ marginBottom: 3 }}>Chọn file Excel:</label>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls"
+                      className="form-input"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setExcelFile(e.target.files[0]);
+                          setPreviewData(null);
+                        }
+                      }}
+                      required
+                    />
+                  </div>
 
+                  <div>
                     <button
-                      type="button"
-                      onClick={handleCommitExcel}
-                      className="btn btn-success btn-lg"
-                      disabled={committing || previewData.validRows.length === 0}
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={!excelFile || previewing}
+                      style={{ width: '100%', height: 38 }}
                     >
-                      {committing ? 'Đang lưu vào kho...' : `XÁC NHẬN NHẬP KHO (${previewData.totalImportItems} MÓN)`}
-                      {!committing && <ArrowRight size={16} />}
+                      {previewing ? 'Đang đọc...' : 'Kiểm tra file'}
                     </button>
                   </div>
+                </div>
+              </form>
+            </div>
 
-                  <div style={{ padding: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-                      <div style={{ padding: 10, backgroundColor: '#f0fdf4', borderRadius: 6 }}>
-                        <div style={{ fontSize: 12, color: '#15803d' }}>Số loại sản phẩm nhập</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>{previewData.validRows.length}</div>
-                      </div>
-
-                      <div style={{ padding: 10, backgroundColor: '#eff6ff', borderRadius: 6 }}>
-                        <div style={{ fontSize: 12, color: '#1e40af' }}>Tổng số lượng nhập</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#2563eb' }}>{previewData.totalImportItems} món</div>
-                      </div>
-
-                      <div style={{ padding: 10, backgroundColor: '#f8fafc', borderRadius: 6 }}>
-                        <div style={{ fontSize: 12, color: '#475569' }}>Tổng giá trị tiền nhập</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{formatVND(previewData.totalImportAmount)}</div>
-                      </div>
+            {/* Preview Diff Box */}
+            {previewData && (
+              <div style={{ marginTop: 14, border: '1.5px solid #2563eb', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#eff6ff',
+                  borderBottom: '1px solid #bfdbfe',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#1e40af', fontSize: 14 }}>
+                      KẾT QUẢ KIỂM TRA FILE NHẬP KHO
                     </div>
-
-                    {/* Table of items to be imported */}
-                    <div className="table-container" style={{ maxHeight: 300 }}>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Mã SKU</th>
-                            <th>Tên sản phẩm</th>
-                            <th className="text-right">Tồn hiện tại</th>
-                            <th className="text-right" style={{ color: '#15803d' }}>SL nhập thêm</th>
-                            <th className="text-right">Tồn sau nhập</th>
-                            <th className="text-right">Đơn giá nhập</th>
-                            <th className="text-right">Thành tiền</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {previewData.validRows.map((row: any, idx: number) => (
-                            <tr key={idx}>
-                              <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.sku}</td>
-                              <td style={{ fontWeight: 600 }}>{row.name}</td>
-                              <td className="text-right">{row.currentStock}</td>
-                              <td className="text-right" style={{ fontWeight: 700, color: '#15803d' }}>
-                                +{row.importQuantity}
-                              </td>
-                              <td className="text-right" style={{ fontWeight: 700 }}>{row.balanceAfter}</td>
-                              <td className="text-right">{formatVND(row.unitCostPrice)}</td>
-                              <td className="text-right" style={{ fontWeight: 600, color: '#1d4ed8' }}>
-                                {formatVND(row.totalAmount)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div style={{ fontSize: 12, color: '#475569', marginTop: 1 }}>
+                      File: <strong>{previewData.fileName}</strong> • <strong>{previewData.validRows.length}</strong> sản phẩm có số lượng
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCommitExcel}
+                    className="btn btn-success"
+                    disabled={committing || previewData.validRows.length === 0}
+                  >
+                    {committing ? 'Đang lưu...' : `XÁC NHẬN (${previewData.totalImportItems} MÓN)`}
+                    {!committing && <ArrowRight size={15} />}
+                  </button>
                 </div>
-              )}
-            </div>
+
+                <div style={{ padding: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
+                    <div style={{ padding: 8, backgroundColor: '#f0fdf4', borderRadius: 4 }}>
+                      <div style={{ fontSize: 11, color: '#15803d' }}>Số loại SP</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a' }}>{previewData.validRows.length}</div>
+                    </div>
+
+                    <div style={{ padding: 8, backgroundColor: '#eff6ff', borderRadius: 4 }}>
+                      <div style={{ fontSize: 11, color: '#1e40af' }}>Tổng số lượng</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#2563eb' }}>{previewData.totalImportItems}</div>
+                    </div>
+
+                    <div style={{ padding: 8, backgroundColor: '#f8fafc', borderRadius: 4 }}>
+                      <div style={{ fontSize: 11, color: '#475569' }}>Tổng tiền</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{formatVND(previewData.totalImportAmount)}</div>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="table-container" style={{ maxHeight: 280 }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Mã SKU</th>
+                          <th>Tên sản phẩm</th>
+                          <th className="text-right">Tồn hiện tại</th>
+                          <th className="text-right" style={{ color: '#15803d' }}>SL nhập</th>
+                          <th className="text-right">Tồn sau nhập</th>
+                          <th className="text-right">Đơn giá</th>
+                          <th className="text-right">Thành tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.validRows.map((row: any, idx: number) => (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.sku}</td>
+                            <td style={{ fontWeight: 600 }}>{row.name}</td>
+                            <td className="text-right">{row.currentStock}</td>
+                            <td className="text-right" style={{ fontWeight: 700, color: '#15803d' }}>
+                              +{row.importQuantity}
+                            </td>
+                            <td className="text-right" style={{ fontWeight: 700 }}>{row.balanceAfter}</td>
+                            <td className="text-right">{formatVND(row.unitCostPrice)}</td>
+                            <td className="text-right" style={{ fontWeight: 600, color: '#1d4ed8' }}>
+                              {formatVND(row.totalAmount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* 4. Recent Imports History */}
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ padding: '10px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={16} color="#64748b" />
             <h3 className="card-title" style={{ fontSize: 14 }}>Lịch sử các lần nhập hàng gần đây</h3>
@@ -582,7 +582,7 @@ export default function InventoryImportPage() {
               <tr>
                 <th>Ngày nhập</th>
                 <th>Sản phẩm</th>
-                <th className="text-right">Số lượng nhập</th>
+                <th className="text-right">Số lượng</th>
                 <th className="text-right">Tồn sau nhập</th>
                 <th>Ghi chú</th>
                 <th>Người thực hiện</th>

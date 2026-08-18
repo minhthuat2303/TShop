@@ -14,7 +14,8 @@ import {
   Store,
   ShieldCheck,
   User as UserIcon,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 
 interface NavItem {
@@ -33,19 +34,42 @@ const NAV_ITEMS: NavItem[] = [
   { title: 'Cài đặt', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   if (!user || pathname === '/login') return null;
 
+  const handleNavClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-brand">
-        <Store size={18} color="#2563eb" />
-        <span>T_SHOP RETAIL</span>
-        <span className="sidebar-brand-badge">PRO</span>
+        <div className="sidebar-brand-title">
+          <Store size={19} color="#2563eb" />
+          <span>T_SHOP RETAIL</span>
+          <span className="sidebar-brand-badge">PRO</span>
+        </div>
+
+        {/* Mobile Close Button */}
+        <button
+          type="button"
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Đóng menu"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Main Navigation */}
@@ -59,9 +83,10 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNavClick}
               className={`nav-item ${isActive ? 'active' : ''}`}
             >
-              <Icon size={17} />
+              <Icon size={18} />
               <span>{item.title}</span>
             </Link>
           );
@@ -69,11 +94,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom-left Admin / User Account Card */}
-      <div className="sidebar-footer" style={{
-        padding: '10px 12px',
-        borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: '#fafafa',
-      }}>
+      <div className="sidebar-footer">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
             <div style={{
@@ -109,7 +130,7 @@ export default function Sidebar() {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
-                {user.role === 'ADMIN' ? 'Quản Trị Viên (Admin)' : 'Nhân viên (Staff)'}
+                {user.role === 'ADMIN' ? 'Quản Trị Viên' : 'Nhân viên'}
               </div>
             </div>
           </div>
@@ -120,8 +141,8 @@ export default function Sidebar() {
             title="Đăng xuất khỏi hệ thống"
             style={{
               padding: 0,
-              height: 28,
-              width: 28,
+              height: 32,
+              width: 32,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -131,7 +152,7 @@ export default function Sidebar() {
               cursor: 'pointer',
             }}
           >
-            <LogOut size={13} />
+            <LogOut size={14} />
           </button>
         </div>
       </div>

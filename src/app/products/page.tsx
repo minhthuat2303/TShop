@@ -46,14 +46,14 @@ export default function ProductsPage() {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<any | null>(null);
 
-  // Import Modal (Requirement 3)
+  // Import Modal
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [committing, setCommitting] = useState(false);
 
-  // Detail Modal (with 5 sub-tabs: Info, Price History, Lots, Sales History, Stock History)
+  // Detail Modal
   const [detailProduct, setDetailProduct] = useState<any | null>(null);
   const [detailTab, setDetailTab] = useState<'info' | 'price' | 'lots' | 'sales' | 'stock'>('info');
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
@@ -172,12 +172,10 @@ export default function ProductsPage() {
     }
   };
 
-  // Handle Download Excel Template
   const handleDownloadTemplate = () => {
     window.open('/api/excel/templates/products', '_blank');
   };
 
-  // Handle Preview Excel Import
   const handlePreviewExcel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) return;
@@ -207,7 +205,6 @@ export default function ProductsPage() {
     }
   };
 
-  // Handle Commit Excel Import
   const handleCommitExcel = async () => {
     if (!previewData || committing) return;
     setCommitting(true);
@@ -244,34 +241,23 @@ export default function ProductsPage() {
   const formatVND = (v: number) => (v || 0).toLocaleString('vi-VN') + ' đ';
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       {/* 1. Header & Navigation Tabs */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 20,
+        gap: 10,
+        marginBottom: 16,
       }}>
-        <div style={{ display: 'flex', gap: 4, backgroundColor: '#f1f5f9', padding: 4, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+        {/* Scrollable Tabs */}
+        <div className="tabs-scroll-container" style={{ backgroundColor: '#f1f5f9', padding: 4, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
           <button
             type="button"
             onClick={() => setActiveTab('products')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'products' ? '#0f172a' : 'transparent',
-              color: activeTab === 'products' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'products' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <Package size={14} />
             <span>Sản phẩm ({products.length})</span>
@@ -279,20 +265,8 @@ export default function ProductsPage() {
           <button
             type="button"
             onClick={() => setActiveTab('categories')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'categories' ? '#0f172a' : 'transparent',
-              color: activeTab === 'categories' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'categories' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <Tag size={14} />
             <span>Danh mục ({categories.length})</span>
@@ -300,28 +274,17 @@ export default function ProductsPage() {
           <button
             type="button"
             onClick={() => setActiveTab('types')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderRadius: 6,
-              border: 'none',
-              backgroundColor: activeTab === 'types' ? '#0f172a' : 'transparent',
-              color: activeTab === 'types' ? '#ffffff' : '#64748b',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={`btn btn-sm ${activeTab === 'types' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ border: 'none', minHeight: 34 }}
           >
             <Layers size={14} />
-            <span>Loại sản phẩm ({productTypes.length})</span>
+            <span>Loại SP ({productTypes.length})</span>
           </button>
         </div>
 
+        {/* Action Buttons */}
         {user?.role === 'ADMIN' && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {activeTab === 'products' && (
               <>
                 <button
@@ -329,25 +292,25 @@ export default function ProductsPage() {
                   className="btn btn-secondary btn-sm"
                   title="Tải file mẫu Excel"
                 >
-                  <Download size={15} color="#059669" />
-                  <span>Xuất file mẫu</span>
+                  <Download size={14} color="#059669" />
+                  <span>Xuất mẫu</span>
                 </button>
 
                 <button
                   onClick={() => { setImportFile(null); setPreviewData(null); setShowImportModal(true); }}
                   className="btn btn-secondary btn-sm"
-                  title="Import file Excel để thêm / cập nhật sản phẩm"
+                  title="Import file Excel"
                 >
-                  <Upload size={15} color="#2563eb" />
-                  <span>Import Excel</span>
+                  <Upload size={14} color="#2563eb" />
+                  <span>Import</span>
                 </button>
 
                 <button
                   onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
                   className="btn btn-primary btn-sm"
                 >
-                  <Plus size={15} />
-                  <span>Thêm sản phẩm</span>
+                  <Plus size={14} />
+                  <span>Thêm SP</span>
                 </button>
               </>
             )}
@@ -356,7 +319,7 @@ export default function ProductsPage() {
                 onClick={() => { setEditingCategory(null); setShowCategoryModal(true); }}
                 className="btn btn-primary btn-sm"
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 <span>Thêm danh mục</span>
               </button>
             )}
@@ -365,7 +328,7 @@ export default function ProductsPage() {
                 onClick={() => { setEditingType(null); setShowTypeModal(true); }}
                 className="btn btn-primary btn-sm"
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 <span>Thêm loại SP</span>
               </button>
             )}
@@ -383,7 +346,8 @@ export default function ProductsPage() {
           border: `1px solid ${feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
           borderRadius: 6,
           color: feedback.type === 'success' ? '#15803d' : '#dc2626',
-          marginBottom: 16,
+          marginBottom: 14,
+          fontSize: 13,
         }}>
           <AlertCircle size={16} />
           <span>{feedback.message}</span>
@@ -393,57 +357,60 @@ export default function ProductsPage() {
       {/* 2. TAB: PRODUCTS */}
       {activeTab === 'products' && (
         <div className="card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ position: 'relative', minWidth: 240 }}>
+          <div className="card-header" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: 8,
+            padding: '10px 14px',
+          }}>
+            <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type="text"
                 className="form-input"
-                style={{ paddingLeft: 30, height: 32, fontSize: 12.5 }}
+                style={{ paddingLeft: 28, height: 34, fontSize: 12.5 }}
                 placeholder="Tìm theo tên, SKU..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 9, top: 9 }} />
+              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 8, top: 10 }} />
             </div>
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select
-                className="form-select"
-                style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 160 }}
-                value={selectedCategory}
-                onChange={(e) => { setSelectedCategory(e.target.value); setSelectedType(''); }}
-              >
-                <option value="">-- Danh mục --</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+            <select
+              className="form-select"
+              style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+              value={selectedCategory}
+              onChange={(e) => { setSelectedCategory(e.target.value); setSelectedType(''); }}
+            >
+              <option value="">-- Tất cả danh mục --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            <select
+              className="form-select"
+              style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+            >
+              <option value="">-- Tất cả loại SP --</option>
+              {productTypes
+                .filter((pt) => !selectedCategory || String(pt.category_id) === String(selectedCategory))
+                .map((pt) => (
+                  <option key={pt.id} value={pt.id}>{pt.name}</option>
                 ))}
-              </select>
+            </select>
 
-              <select
-                className="form-select"
-                style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 160 }}
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-              >
-                <option value="">-- Loại sản phẩm --</option>
-                {productTypes
-                  .filter((pt) => !selectedCategory || String(pt.category_id) === String(selectedCategory))
-                  .map((pt) => (
-                    <option key={pt.id} value={pt.id}>{pt.name}</option>
-                  ))}
-              </select>
-
-              <select
-                className="form-select"
-                style={{ height: 32, padding: '4px 8px', fontSize: 12.5, width: 140 }}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">-- Trạng thái --</option>
-                <option value="ACTIVE">Đang bán</option>
-                <option value="INACTIVE">Ngừng bán</option>
-              </select>
-            </div>
+            <select
+              className="form-select"
+              style={{ height: 34, padding: '2px 8px', fontSize: 12.5 }}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">-- Trạng thái --</option>
+              <option value="ACTIVE">Đang bán</option>
+              <option value="INACTIVE">Ngừng bán</option>
+            </select>
           </div>
 
           <div className="table-container">
@@ -457,7 +424,7 @@ export default function ProductsPage() {
                   <th className="text-right">Giá bán</th>
                   <th className="text-right">Tồn kho</th>
                   <th className="text-center">Trạng thái</th>
-                  <th className="text-center" style={{ width: 150 }}>Thao tác</th>
+                  <th className="text-center" style={{ width: 130 }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -511,10 +478,11 @@ export default function ProductsPage() {
                         </span>
                       </td>
                       <td className="text-center">
-                        <div style={{ display: 'inline-flex', gap: 6 }}>
+                        <div style={{ display: 'inline-flex', gap: 4 }}>
                           <button
                             onClick={() => { setDetailProduct(p); setDetailTab('price'); }}
                             className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 6px' }}
                             title="Xem lịch sử giá & thẻ kho"
                           >
                             <History size={13} />
@@ -524,6 +492,7 @@ export default function ProductsPage() {
                               <button
                                 onClick={() => { setEditingProduct(p); setShowProductModal(true); }}
                                 className="btn btn-secondary btn-sm"
+                                style={{ padding: '4px 6px' }}
                                 title="Sửa thông tin"
                               >
                                 <Edit size={13} />
@@ -531,6 +500,7 @@ export default function ProductsPage() {
                               <button
                                 onClick={() => handleToggleStatus(p)}
                                 className={`btn btn-sm ${p.status === 'ACTIVE' ? 'btn-secondary' : 'btn-success'}`}
+                                style={{ padding: '4px 6px', fontSize: 11.5 }}
                                 title={p.status === 'ACTIVE' ? 'Ngừng bán' : 'Kích hoạt lại'}
                               >
                                 {p.status === 'ACTIVE' ? 'Dừng' : 'Bật'}
@@ -561,7 +531,7 @@ export default function ProductsPage() {
                   <th className="text-right">Số loại SP</th>
                   <th className="text-right">Số sản phẩm</th>
                   <th className="text-center">Trạng thái</th>
-                  {user?.role === 'ADMIN' && <th className="text-center" style={{ width: 120 }}>Thao tác</th>}
+                  {user?.role === 'ADMIN' && <th className="text-center" style={{ width: 90 }}>Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -601,13 +571,13 @@ export default function ProductsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: 130 }}>Mã loại</th>
+                  <th style={{ width: 120 }}>Mã loại</th>
                   <th>Tên loại sản phẩm</th>
                   <th>Thuộc danh mục</th>
                   <th>Mô tả</th>
                   <th className="text-right">Số lượng SP</th>
                   <th className="text-center">Trạng thái</th>
-                  {user?.role === 'ADMIN' && <th className="text-center" style={{ width: 120 }}>Thao tác</th>}
+                  {user?.role === 'ADMIN' && <th className="text-center" style={{ width: 90 }}>Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -642,14 +612,14 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* 5. IMPORT EXCEL MODAL (REQUIREMENT 3) */}
+      {/* 5. IMPORT EXCEL MODAL */}
       {showImportModal && (
         <div className="modal-backdrop" onClick={() => setShowImportModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 650 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileSpreadsheet size={18} color="#2563eb" />
-                <h3 className="modal-title">Import danh sách sản phẩm từ Excel</h3>
+                <h3 className="modal-title">Import sản phẩm từ Excel</h3>
               </div>
               <button onClick={() => setShowImportModal(false)} className="btn btn-secondary btn-sm"><X size={16} /></button>
             </div>
@@ -657,11 +627,12 @@ export default function ProductsPage() {
             <div className="modal-body">
               <form onSubmit={handlePreviewExcel} style={{ marginBottom: 16 }}>
                 <label className="form-label">Chọn file Excel (.xlsx hoặc .xls):</label>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <input
                     type="file"
                     accept=".xlsx, .xls"
                     className="form-input"
+                    style={{ flex: 1, minWidth: 200 }}
                     onChange={(e) => {
                       if (e.target.files?.[0]) {
                         setImportFile(e.target.files[0]);
@@ -670,7 +641,7 @@ export default function ProductsPage() {
                     }}
                     required
                   />
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!importFile || previewing}>
+                  <button type="submit" className="btn btn-primary" disabled={!importFile || previewing} style={{ height: 38 }}>
                     {previewing ? 'Đang đọc...' : 'Kiểm tra file'}
                   </button>
                 </div>
@@ -678,12 +649,12 @@ export default function ProductsPage() {
 
               {/* Preview Diff Box */}
               {previewData && (
-                <div style={{ border: '1px solid var(--border-strong)', borderRadius: 6, padding: 14, backgroundColor: '#f8fafc' }}>
+                <div style={{ border: '1px solid var(--border-strong)', borderRadius: 6, padding: 12, backgroundColor: '#f8fafc' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#0f172a' }}>
                     Kết quả kiểm tra file:
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
                     <div style={{ padding: 8, backgroundColor: '#f0fdf4', borderRadius: 4, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: '#15803d' }}>Thêm mới</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a' }}>{previewData.creates.length}</div>
@@ -714,10 +685,10 @@ export default function ProductsPage() {
                     type="button"
                     onClick={handleCommitExcel}
                     className="btn btn-success"
-                    style={{ width: '100%', padding: '8px 0', fontSize: 14 }}
+                    style={{ width: '100%', minHeight: 42, fontSize: 14 }}
                     disabled={committing || (previewData.creates.length === 0 && previewData.updates.length === 0)}
                   >
-                    {committing ? 'Đang lưu vào hệ thống...' : `Xác nhận Import (${previewData.creates.length + previewData.updates.length} sản phẩm)`}
+                    {committing ? 'Đang lưu vào hệ thống...' : `Xác nhận Import (${previewData.creates.length + previewData.updates.length} SP)`}
                   </button>
                 </div>
               )}
@@ -730,34 +701,38 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* 6. PRODUCT DETAIL MODAL (4 SUB-TABS: Info, Price History, Sales, Stock) */}
+      {/* 6. PRODUCT DETAIL MODAL */}
       {detailProduct && (
         <div className="modal-backdrop" onClick={() => setDetailProduct(null)}>
           <div className="modal-content" style={{ maxWidth: 750 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div>
-                <h3 className="modal-title">{detailProduct.name}</h3>
-                <div style={{ fontSize: 12, color: '#64748b' }}>SKU: {detailProduct.sku} • {detailProduct.category_name} ({detailProduct.product_type_name})</div>
+              <div style={{ minWidth: 0, flex: 1, paddingRight: 8 }}>
+                <h3 className="modal-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {detailProduct.name}
+                </h3>
+                <div style={{ fontSize: 12, color: '#64748b' }}>
+                  SKU: {detailProduct.sku} • {detailProduct.category_name} ({detailProduct.product_type_name})
+                </div>
               </div>
               <button onClick={() => setDetailProduct(null)} className="btn btn-secondary btn-sm">
                 <X size={16} />
               </button>
             </div>
 
-            {/* Modal Sub-Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 20px', backgroundColor: '#f8fafc' }}>
+            {/* Modal Sub-Tabs (Scrollable) */}
+            <div className="tabs-scroll-container" style={{ borderBottom: '1px solid var(--border-subtle)', padding: '0 14px', backgroundColor: '#f8fafc' }}>
               {[
                 { key: 'info', label: 'Thông tin chung' },
-                { key: 'lots', label: 'Lô hàng nhập (FIFO)' },
-                { key: 'price', label: 'Lịch sử giá bán' },
-                { key: 'sales', label: 'Lịch sử bán hàng' },
+                { key: 'lots', label: 'Lô hàng (FIFO)' },
+                { key: 'price', label: 'Lịch sử giá' },
+                { key: 'sales', label: 'Lịch sử bán' },
                 { key: 'stock', label: 'Lịch sử kho' },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setDetailTab(tab.key as any)}
                   style={{
-                    padding: '10px 14px',
+                    padding: '10px 12px',
                     fontSize: 13,
                     fontWeight: 600,
                     border: 'none',
@@ -765,6 +740,7 @@ export default function ProductsPage() {
                     backgroundColor: 'transparent',
                     color: detailTab === tab.key ? '#2563eb' : '#64748b',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {tab.label}
@@ -774,36 +750,36 @@ export default function ProductsPage() {
 
             <div className="modal-body">
               {detailTab === 'info' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>Mã SKU:</div>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>{detailProduct.sku}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{detailProduct.sku}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>Trạng thái:</div>
                     <div style={{ fontWeight: 600 }}>{detailProduct.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Giá vốn BQ tồn:</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Giá vốn BQ:</div>
                     <div style={{ fontWeight: 600, color: '#64748b' }}>{formatVND(detailProduct.current_cost_price)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Giá bán hiện tại:</div>
-                    <div style={{ fontWeight: 700, color: '#1d4ed8', fontSize: 16 }}>{formatVND(detailProduct.current_selling_price)}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Giá bán:</div>
+                    <div style={{ fontWeight: 700, color: '#1d4ed8', fontSize: 15 }}>{formatVND(detailProduct.current_selling_price)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Tồn kho hiện có:</div>
-                    <div style={{ fontWeight: 700, color: '#059669', fontSize: 16 }}>{detailProduct.current_stock} món</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Tồn hiện tại:</div>
+                    <div style={{ fontWeight: 700, color: '#059669', fontSize: 15 }}>{detailProduct.current_stock} món</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Ngưỡng cảnh báo tồn ít:</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Cảnh báo tồn ít:</div>
                     <div style={{ fontWeight: 600 }}>{detailProduct.min_stock_alert} món</div>
                   </div>
                 </div>
               )}
 
               {detailTab === 'lots' && (
-                <div>
+                <div className="table-container">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -860,19 +836,18 @@ export default function ProductsPage() {
                   {user?.role === 'ADMIN' && (
                     <form onSubmit={handleAddNewPrice} style={{
                       backgroundColor: '#eff6ff',
-                      padding: 14,
+                      padding: 12,
                       borderRadius: 6,
                       border: '1px solid #bfdbfe',
-                      marginBottom: 16,
+                      marginBottom: 14,
                     }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1e3a8a', marginBottom: 8 }}>
-                        Thêm mức giá bán mới (Áp dụng theo ngày):
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1e3a8a', marginBottom: 6 }}>
+                        Thêm mức giá bán mới:
                       </div>
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
                         <input
                           type="number"
                           className="form-input"
-                          style={{ width: 140 }}
                           placeholder="Mức giá mới"
                           value={newPrice}
                           onChange={(e) => setNewPrice(e.target.value)}
@@ -881,7 +856,6 @@ export default function ProductsPage() {
                         <input
                           type="date"
                           className="form-input"
-                          style={{ width: 145 }}
                           value={effectiveDate}
                           onChange={(e) => setEffectiveDate(e.target.value)}
                           required
@@ -889,110 +863,115 @@ export default function ProductsPage() {
                         <input
                           type="text"
                           className="form-input"
-                          style={{ flex: 1, minWidth: 140 }}
-                          placeholder="Lý do đổi giá (tuỳ chọn)"
+                          placeholder="Lý do đổi giá"
                           value={priceNote}
                           onChange={(e) => setPriceNote(e.target.value)}
                         />
-                        <button type="submit" className="btn btn-primary btn-sm">
-                          Cập nhật giá
+                        <button type="submit" className="btn btn-primary" style={{ height: 38 }}>
+                          Cập nhật
                         </button>
                       </div>
                     </form>
                   )}
 
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Ngày áp dụng</th>
+                          <th className="text-right">Mức giá bán</th>
+                          <th>Ghi chú</th>
+                          <th>Người cập nhật</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {priceHistory.map((ph) => (
+                          <tr key={ph.id}>
+                            <td style={{ fontWeight: 600 }}>{ph.effective_from}</td>
+                            <td className="text-right" style={{ fontWeight: 700, color: '#1d4ed8' }}>
+                              {formatVND(ph.price)}
+                            </td>
+                            <td style={{ color: '#64748b' }}>{ph.note || '-'}</td>
+                            <td style={{ fontSize: 12 }}>{ph.creator_name || 'Hệ thống'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {detailTab === 'sales' && (
+                <div className="table-container">
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Ngày áp dụng</th>
-                        <th className="text-right">Mức giá bán</th>
-                        <th>Ghi chú</th>
-                        <th>Người cập nhật</th>
+                        <th>Ngày bán</th>
+                        <th>Mã GD</th>
+                        <th className="text-right">SL</th>
+                        <th className="text-right">Giá bán lúc đó</th>
+                        <th className="text-right">Doanh thu</th>
+                        <th className="text-right">Lợi nhuận</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {priceHistory.map((ph) => (
-                        <tr key={ph.id}>
-                          <td style={{ fontWeight: 600 }}>{ph.effective_from}</td>
-                          <td className="text-right" style={{ fontWeight: 700, color: '#1d4ed8' }}>
-                            {formatVND(ph.price)}
+                      {salesHistory.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>
+                            Chưa có lịch sử bán hàng.
                           </td>
-                          <td style={{ color: '#64748b' }}>{ph.note || '-'}</td>
-                          <td style={{ fontSize: 12 }}>{ph.creator_name || 'Hệ thống'}</td>
                         </tr>
-                      ))}
+                      ) : (
+                        salesHistory.map((sh) => (
+                          <tr key={sh.id}>
+                            <td>{sh.sale_date}</td>
+                            <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{sh.transaction_code}</td>
+                            <td className="text-right" style={{ fontWeight: 700 }}>{sh.quantity}</td>
+                            <td className="text-right">{formatVND(sh.unit_price_at_sale)}</td>
+                            <td className="text-right" style={{ fontWeight: 700, color: '#1d4ed8' }}>{formatVND(sh.total_revenue)}</td>
+                            <td className="text-right" style={{ fontWeight: 600, color: '#15803d' }}>{formatVND(sh.profit)}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               )}
 
-              {detailTab === 'sales' && (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Ngày bán</th>
-                      <th>Mã giao dịch</th>
-                      <th className="text-right">SL</th>
-                      <th className="text-right">Giá bán lúc đó</th>
-                      <th className="text-right">Doanh thu</th>
-                      <th className="text-right">Lợi nhuận</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salesHistory.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>
-                          Chưa có lịch sử bán hàng.
-                        </td>
-                      </tr>
-                    ) : (
-                      salesHistory.map((sh) => (
-                        <tr key={sh.id}>
-                          <td>{sh.sale_date}</td>
-                          <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{sh.transaction_code}</td>
-                          <td className="text-right" style={{ fontWeight: 700 }}>{sh.quantity}</td>
-                          <td className="text-right">{formatVND(sh.unit_price_at_sale)}</td>
-                          <td className="text-right" style={{ fontWeight: 700, color: '#1d4ed8' }}>{formatVND(sh.total_revenue)}</td>
-                          <td className="text-right" style={{ fontWeight: 600, color: '#15803d' }}>{formatVND(sh.profit)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              )}
-
               {detailTab === 'stock' && (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Ngày</th>
-                      <th>Loại biến động</th>
-                      <th className="text-right">Số lượng</th>
-                      <th className="text-right">Tồn sau GD</th>
-                      <th>Ghi chú</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stockHistory.map((sm) => (
-                      <tr key={sm.id}>
-                        <td>{sm.movement_date}</td>
-                        <td>
-                          <span className={`badge ${sm.movement_type === 'PURCHASE' ? 'badge-success' : sm.movement_type === 'SALE' ? 'badge-neutral' : 'badge-danger'}`}>
-                            {sm.movement_type}
-                          </span>
-                        </td>
-                        <td className="text-right" style={{
-                          fontWeight: 700,
-                          color: sm.quantity_change > 0 ? '#15803d' : '#dc2626',
-                        }}>
-                          {sm.quantity_change > 0 ? `+${sm.quantity_change}` : sm.quantity_change}
-                        </td>
-                        <td className="text-right" style={{ fontWeight: 700 }}>{sm.balance_after}</td>
-                        <td style={{ fontSize: 12, color: '#64748b' }}>{sm.note || '-'}</td>
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Ngày</th>
+                        <th>Loại biến động</th>
+                        <th className="text-right">Số lượng</th>
+                        <th className="text-right">Tồn sau GD</th>
+                        <th>Ghi chú</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {stockHistory.map((sm) => (
+                        <tr key={sm.id}>
+                          <td>{sm.movement_date}</td>
+                          <td>
+                            <span className={`badge ${sm.movement_type === 'PURCHASE' ? 'badge-success' : sm.movement_type === 'SALE' ? 'badge-neutral' : 'badge-danger'}`}>
+                              {sm.movement_type}
+                            </span>
+                          </td>
+                          <td className="text-right" style={{
+                            fontWeight: 700,
+                            color: sm.quantity_change > 0 ? '#15803d' : '#dc2626',
+                          }}>
+                            {sm.quantity_change > 0 ? `+${sm.quantity_change}` : sm.quantity_change}
+                          </td>
+                          <td className="text-right" style={{ fontWeight: 700 }}>{sm.balance_after}</td>
+                          <td style={{ fontSize: 12, color: '#64748b' }}>{sm.note || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
@@ -1100,7 +1079,7 @@ function ProductFormModal({ product, categories, productTypes, onClose, onSucces
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <div className="modal-header">
             <h3 className="modal-title">{isEdit ? 'Sửa thông tin sản phẩm' : 'Thêm sản phẩm mới'}</h3>
@@ -1114,7 +1093,7 @@ function ProductFormModal({ product, categories, productTypes, onClose, onSucces
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
               <div className="form-group">
                 <label className="form-label">Mã SKU (*)</label>
                 <input
@@ -1139,7 +1118,7 @@ function ProductFormModal({ product, categories, productTypes, onClose, onSucces
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
               <div className="form-group">
                 <label className="form-label">Danh mục (*)</label>
                 <select
@@ -1172,7 +1151,7 @@ function ProductFormModal({ product, categories, productTypes, onClose, onSucces
             </div>
 
             {!isEdit && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
                 <div className="form-group">
                   <label className="form-label">Giá nhập</label>
                   <input

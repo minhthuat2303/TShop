@@ -39,3 +39,5 @@ yarn-error.log*
 # Temporary & Local Data
 .tempmediaStorage/
 scratch/
+*.db-shm
+*.db-wal
