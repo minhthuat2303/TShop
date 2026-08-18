@@ -61,9 +61,12 @@ const sqlite = new Database(SQLITE_PATH, { readonly: true });
 console.log(`\n📦 [1/4] Đã mở thành công file SQLite: ${SQLITE_PATH}`);
 
 // 3. Connect to PostgreSQL
-const isSsl = !connectionString.includes('localhost') && !connectionString.includes('127.0.0.1');
+let cleanUrl = connectionString.replace(/[?&]sslmode=[^&]*/gi, '').replace(/[?&]supa=[^&]*/gi, '').replace(/[?&]pgbouncer=[^&]*/gi, '');
+if (cleanUrl.endsWith('?')) cleanUrl = cleanUrl.slice(0, -1);
+
+const isSsl = !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1');
 const pool = new Pool({
-  connectionString,
+  connectionString: cleanUrl,
   ssl: isSsl ? { rejectUnauthorized: false } : false,
   connectionTimeoutMillis: 15000,
 });

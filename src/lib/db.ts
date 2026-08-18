@@ -51,11 +51,14 @@ function getPgPool(): Pool {
     return global.__pg_pool__;
   }
 
-  const connectionString = getPostgresConnectionString()!;
-  const isSsl = !connectionString.includes('localhost') && !connectionString.includes('127.0.0.1');
+  const rawUrl = getPostgresConnectionString()!;
+  let cleanUrl = rawUrl.replace(/[?&]sslmode=[^&]*/gi, '').replace(/[?&]supa=[^&]*/gi, '').replace(/[?&]pgbouncer=[^&]*/gi, '');
+  if (cleanUrl.endsWith('?')) cleanUrl = cleanUrl.slice(0, -1);
+
+  const isSsl = !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1');
 
   const pool = new Pool({
-    connectionString,
+    connectionString: cleanUrl,
     ssl: isSsl ? { rejectUnauthorized: false } : false,
     max: 10,
     idleTimeoutMillis: 30000,
